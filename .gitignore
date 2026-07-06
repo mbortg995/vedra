@@ -1,0 +1,27 @@
+# Dependencias
+node_modules/
+vendor/
+.venv/
+venv/
+__pycache__/
+
+# Builds / artefactos
+dist/
+build/
+*.log
+
+# Entorno / secretos
+.env
+.env.local
+.env.*.local
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Editores / IDE
+.idea/
+*.swp
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
