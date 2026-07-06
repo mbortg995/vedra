@@ -1,48 +1,50 @@
 """
 Pipeline diario: nivel de preemergencia de incendios de la Comunitat Valenciana.
 
-Fuente oficial: https://prevencionincendiosgva.es/Meteorology/NivelPreemergencia
-La GVA (vía AEMET) publica un nivel diario (1/2/3) para cada una de las 7 zonas
-Previfoc de la Comunitat.
+Fuente oficial (HTML server-rendered, sin JS):
+    https://prevencionincendiosgva.es/Meteorologia/NivelPreemergenciaList
+Por defecto esa página devuelve una tabla con la última semana. Cada día trae dos
+filas: "Alerta" (nivel de preemergencia de incendios 1/2/3 por zona, lo que nos
+interesa) y "Tormenta" (riesgo de tormenta, se ignora). Columnas de zona, en orden:
+    Z. 1N | Z. 1S | Z. 2 | Z. 3 | Z. 4 | Z. 5 | Z. 6   (ZonaID 1..7)
 
 Corre cada mañana en GitHub Actions. Flujo:
     1. Descarga la página oficial.
-    2. Parsea el nivel por zona.
-    3. Valida: ¿hay dato de hoy? ¿está fresco? Si no, aborta SIN escribir
-       (el motor ya trata la ausencia de dato como rojo, así que no escribir
-        es la opción segura).
-    4. Genera los UPSERT para condiciones_diarias en Supabase.
+    2. Parsea la fila "Alerta" de HOY -> 7 niveles por zona.
+    3. Valida: ¿hay dato de hoy? ¿7 zonas? ¿niveles en 1-3? Si no, aborta SIN
+       escribir. El motor trata la ausencia de dato como rojo, así que no escribir
+       es la opción segura.
+    4. UPSERT a condiciones_diarias vía REST con la service_role.
 
-Diseño defensivo: si la estructura de la web cambia y el parseo devuelve algo
-inesperado (nivel fuera de 1-3, menos de N zonas), NO escribe y avisa. Es
-preferible que la app diga "sin dato -> rojo" a que escriba un dato erróneo
-que pinte un verde falso sobre un día de riesgo real.
+Diseño defensivo: cualquier anomalía de parseo -> NO escribe y sale con error.
+Es preferible "sin dato -> rojo" a escribir un dato dudoso que pinte un verde falso.
 
 Uso:
-    python3 ingesta_preemergencia.py --demo      # usa muestra local, no red
-    python3 ingesta_preemergencia.py             # producción (requiere red + env)
+    python3 ingesta_preemergencia.py --demo      # muestra local, sin red ni escritura
+    python3 ingesta_preemergencia.py --dry-run   # descarga y parsea real, NO escribe
+    python3 ingesta_preemergencia.py             # producción: descarga, valida y escribe
 """
 
-import sys
+import os
 import re
+import sys
+import html
 import json
+import urllib.request
+import urllib.parse
 from datetime import datetime, date, timezone
 
-FUENTE_URL = "https://prevencionincendiosgva.es/Meteorology/NivelPreemergencia"
-ZONAS_ESPERADAS = 7           # la Comunitat se divide en 7 zonas Previfoc
+FUENTE_URL = "https://prevencionincendiosgva.es/Meteorologia/NivelPreemergenciaList"
+ZONAS_ESPERADAS = 7
 NIVELES_VALIDOS = {"1", "2", "3"}
 
-# Mapa de nombre de zona oficial -> id de territorio en tu tabla TERRITORIOS.
-# Lo rellenas una vez al dar de alta las zonas. Ejemplo parcial:
-MAPA_ZONA_TERRITORIO = {
-    "Zona 1": "cv-pref-z1",
-    "Zona 2": "cv-pref-z2",
-    "Zona 3": "cv-pref-z3",
-    "Zona 4": "cv-pref-z4",
-    "Zona 5": "cv-pref-z5",
-    "Zona 6": "cv-pref-z6",
-    "Zona 7": "cv-pref-z7",
-}
+# Orden de columnas de zona en la tabla oficial -> codigo de TERRITORIOS.
+# La columna i (0..6) es la ZonaID i+1; los codigos del seed son CV-PREF-Z{ZonaID}.
+COL_A_CODIGO = [f"CV-PREF-Z{i+1}" for i in range(ZONAS_ESPERADAS)]
+
+
+class ValidacionError(Exception):
+    pass
 
 
 # ---------------------------------------------------------------------------
@@ -50,136 +52,128 @@ MAPA_ZONA_TERRITORIO = {
 # ---------------------------------------------------------------------------
 
 def descargar_html():
-    import urllib.request
-    req = urllib.request.Request(FUENTE_URL, headers={"User-Agent": "OutdoorApp/1.0 (contacto@ejemplo.com)"})
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    req = urllib.request.Request(FUENTE_URL, headers={
+        "User-Agent": "Vedra/1.0 (ingesta preemergencia; contacto@vedra.app)"})
+    with urllib.request.urlopen(req, timeout=40) as resp:
         return resp.read().decode("utf-8", errors="replace")
 
 
 # ---------------------------------------------------------------------------
-# 2. Parseo
+# 2. Parseo — fila "Alerta" de hoy
 # ---------------------------------------------------------------------------
 
-def parsear(html):
+def _celdas(tr):
+    return [html.unescape(re.sub("<.*?>", "", c)).strip()
+            for c in re.findall(r"<td[^>]*>(.*?)</td>", tr, re.S | re.I)]
+
+
+def parsear(html_txt, hoy=None):
     """
-    Devuelve (fecha_boletin, [{'zona':..., 'nivel':...}, ...]).
-
-    NOTA: el selector exacto depende del HTML real de la página. Este parser
-    busca un patrón genérico "Zona N ... nivel D" que deberás afinar la primera
-    vez inspeccionando el HTML real. La estrategia de validación posterior es lo
-    que te protege de que un cambio de maquetación cuele datos basura.
+    Devuelve (fecha_boletin: date, niveles: [str]*7) para la fila 'Alerta' de hoy.
+    Si no encuentra la fila de hoy, devuelve (None, []).
     """
-    # Fecha del boletín (dd/mm/aaaa en la página). Si no se encuentra, None.
-    m_fecha = re.search(r"(\d{2})/(\d{2})/(\d{4})", html)
-    fecha_boletin = None
-    if m_fecha:
-        d, mth, y = m_fecha.groups()
-        fecha_boletin = date(int(y), int(mth), int(d))
+    hoy = hoy or date.today()
+    hoy_str = hoy.strftime("%d/%m/%Y")
 
-    # Pares Zona -> nivel. Patrón deliberadamente simple; afinar con el HTML real.
-    filas = []
-    for m in re.finditer(r"(Zona\s*\d)\D{0,80}?nivel[^\d]{0,20}(\d)", html, re.IGNORECASE | re.DOTALL):
-        zona = re.sub(r"\s+", " ", m.group(1)).strip().title()
-        nivel = m.group(2)
-        filas.append({"zona": zona, "nivel": nivel})
+    m = re.search(r"<table[^>]*>(.*?)</table>", html_txt, re.S | re.I)
+    if not m:
+        return None, []
+    filas = re.findall(r"<tr[^>]*>(.*?)</tr>", m.group(1), re.S | re.I)
 
-    # Dedup por zona (por si el patrón captura repetidos), conservando el primero.
-    vistas, unicas = set(), []
-    for f in filas:
-        if f["zona"] not in vistas:
-            vistas.add(f["zona"])
-            unicas.append(f)
-    return fecha_boletin, unicas
+    for tr in filas:
+        tds = _celdas(tr)
+        # La fila 'Alerta' de un día: [fecha, 'Alerta', n1..n7, comentarios]
+        if len(tds) >= 9 and tds[0] == hoy_str and tds[1].lower().startswith("alerta"):
+            niveles = tds[2:2 + ZONAS_ESPERADAS]
+            return hoy, niveles
+    return None, []
 
 
 # ---------------------------------------------------------------------------
 # 3. Validación defensiva
 # ---------------------------------------------------------------------------
 
-class ValidacionError(Exception):
-    pass
-
-
-def validar(fecha_boletin, filas, hoy=None):
+def validar(fecha_boletin, niveles, hoy=None):
     hoy = hoy or date.today()
-
     if fecha_boletin is None:
-        raise ValidacionError("No se encontró la fecha del boletín en la página.")
-
-    # El boletín es diario. Aceptamos hoy o ayer (por si se corre de madrugada
-    # antes de la actualización). Más viejo -> abortar.
-    dias = (hoy - fecha_boletin).days
-    if dias < 0 or dias > 1:
-        raise ValidacionError(f"Boletín con fecha {fecha_boletin}, hoy es {hoy}. Fuera de rango; no se escribe.")
-
-    if len(filas) < ZONAS_ESPERADAS:
-        raise ValidacionError(f"Se esperaban {ZONAS_ESPERADAS} zonas, se parsearon {len(filas)}. Posible cambio de maquetación.")
-
-    for f in filas:
-        if f["nivel"] not in NIVELES_VALIDOS:
-            raise ValidacionError(f"Nivel inválido '{f['nivel']}' en {f['zona']}.")
-        if f["zona"] not in MAPA_ZONA_TERRITORIO:
-            raise ValidacionError(f"Zona desconocida '{f['zona']}' sin territorio mapeado.")
-
+        raise ValidacionError("No se encontró la fila 'Alerta' de hoy en la tabla.")
+    if fecha_boletin != hoy:
+        raise ValidacionError(f"Boletín con fecha {fecha_boletin}, hoy es {hoy}. No se escribe.")
+    if len(niveles) != ZONAS_ESPERADAS:
+        raise ValidacionError(f"Se esperaban {ZONAS_ESPERADAS} niveles, se parsearon {len(niveles)}. Posible cambio de maquetación.")
+    for i, n in enumerate(niveles):
+        if n not in NIVELES_VALIDOS:
+            raise ValidacionError(f"Nivel inválido '{n}' en columna {i} ({COL_A_CODIGO[i]}).")
     return True
 
 
 # ---------------------------------------------------------------------------
-# 4. Generación de UPSERTs (Supabase)
+# 4. Escritura (REST / PostgREST con service_role)
 # ---------------------------------------------------------------------------
 
-def construir_registros(fecha_boletin, filas, ahora=None):
-    ahora = ahora or datetime.now(timezone.utc)
+def _rest(metodo, ruta, key, body=None, extra_headers=None):
+    url = os.environ["SUPABASE_URL"].rstrip("/") + ruta
+    headers = {"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    if extra_headers:
+        headers.update(extra_headers)
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(url, data=data, headers=headers, method=metodo)
+    with urllib.request.urlopen(req, timeout=30) as r:
+        txt = r.read().decode()
+        return json.loads(txt) if txt.strip() else []
+
+
+def resolver_territorios(codigos, key):
+    """codigo -> uuid, leyendo TERRITORIOS. Aborta si falta alguna zona."""
+    lista = ",".join(codigos)
+    filas = _rest("GET", f"/rest/v1/territorios?select=id,codigo&codigo=in.({lista})", key)
+    mapa = {f["codigo"]: f["id"] for f in filas}
+    faltan = [c for c in codigos if c not in mapa]
+    if faltan:
+        raise ValidacionError(f"Territorios sin dar de alta para las zonas: {faltan}. No se escribe.")
+    return mapa
+
+
+def construir_registros(fecha_boletin, niveles, territorio_map, ahora=None):
+    ahora = (ahora or datetime.now(timezone.utc)).isoformat()
     registros = []
-    for f in filas:
+    for i, nivel in enumerate(niveles):
+        codigo = COL_A_CODIGO[i]
         registros.append({
-            "territorio_id": MAPA_ZONA_TERRITORIO[f["zona"]],
+            "territorio_id": territorio_map[codigo],
             "fecha": fecha_boletin.isoformat(),
             "tipo": "preemergencia_incendios",
-            "nivel": f["nivel"],
-            "obtenido_en": ahora.isoformat(),
+            "nivel": nivel,
+            "obtenido_en": ahora,
             "fuente_url": FUENTE_URL,
         })
     return registros
 
 
 def escribir_supabase(registros):
-    """
-    En producción: upsert vía supabase-py o REST. Clave de conflicto:
-    (territorio_id, fecha, tipo) -> reescribe si ya existía.
-    Aquí solo lo imprime.
-    """
-    import os
-    url = os.environ.get("SUPABASE_URL")
+    """UPSERT sobre la PK (territorio_id, fecha, tipo). Solo con service_role."""
     key = os.environ.get("SUPABASE_SERVICE_KEY")
-    if not (url and key):
-        print("[!] Sin credenciales Supabase en entorno; volcando a stdout en su lugar.\n")
+    if not (os.environ.get("SUPABASE_URL") and key):
+        print("[!] Sin SUPABASE_URL/SERVICE_KEY; volcando a stdout en su lugar.\n")
         print(json.dumps(registros, indent=2, ensure_ascii=False))
         return
-    # from supabase import create_client
-    # sb = create_client(url, key)
-    # sb.table("condiciones_diarias").upsert(registros, on_conflict="territorio_id,fecha,tipo").execute()
-    print(json.dumps(registros, indent=2, ensure_ascii=False))
+    _rest("POST", "/rest/v1/condiciones_diarias?on_conflict=territorio_id,fecha,tipo",
+          key, body=registros,
+          extra_headers={"Prefer": "resolution=merge-duplicates,return=minimal"})
+    print(f"[✓] UPSERT de {len(registros)} registros en condiciones_diarias.")
 
 
 # ---------------------------------------------------------------------------
-# Muestra para --demo (HTML representativo, no es la web real)
+# Muestra para --demo (tabla representativa; no es la web real)
 # ---------------------------------------------------------------------------
 
 HTML_DEMO = """
-<html><body>
-<h1>Nivel de Preemergencia — Boletín del {fecha}</h1>
 <table>
-  <tr><td>Zona 1</td><td>Litoral Norte</td><td>nivel 1</td></tr>
-  <tr><td>Zona 2</td><td>Interior Norte</td><td>nivel 2</td></tr>
-  <tr><td>Zona 3</td><td>Litoral Centro</td><td>nivel 1</td></tr>
-  <tr><td>Zona 4</td><td>Interior Centro</td><td>nivel 2</td></tr>
-  <tr><td>Zona 5</td><td>Litoral Sur</td><td>nivel 3</td></tr>
-  <tr><td>Zona 6</td><td>Interior Sur</td><td>nivel 2</td></tr>
-  <tr><td>Zona 7</td><td>Montaña</td><td>nivel 1</td></tr>
+<tr><th>Fecha</th><th>Z. 1N</th><th>Z. 1S</th><th>Z. 2</th><th>Z. 3</th><th>Z. 4</th><th>Z. 5</th><th>Z. 6</th><th>Comentarios</th></tr>
+<tr><td>{hoy}</td><td>Alerta</td><td>1</td><td>2</td><td>1</td><td>2</td><td>3</td><td>2</td><td>1</td><td>Queda prohibida la quema... nivel 1 hasta las 11 h.</td></tr>
+<tr><td>Tormenta</td><td>1</td><td>1</td><td>1</td><td>2</td><td>1</td><td>2</td><td>1</td></tr>
 </table>
-</body></html>
-""".format(fecha=date.today().strftime("%d/%m/%Y"))
+""".format(hoy=date.today().strftime("%d/%m/%Y"))
 
 
 # ---------------------------------------------------------------------------
@@ -188,20 +182,34 @@ HTML_DEMO = """
 
 def main():
     demo = "--demo" in sys.argv
-    print(f"[i] Ingesta preemergencia — {'DEMO' if demo else 'PRODUCCIÓN'} — {datetime.now(timezone.utc).isoformat()}\n")
+    dry = "--dry-run" in sys.argv
+    modo = "DEMO" if demo else ("DRY-RUN" if dry else "PRODUCCIÓN")
+    print(f"[i] Ingesta preemergencia — {modo} — {datetime.now(timezone.utc).isoformat()}\n")
 
     try:
-        html = HTML_DEMO if demo else descargar_html()
-        fecha_boletin, filas = parsear(html)
-        print(f"[i] Boletín {fecha_boletin} — {len(filas)} zonas parseadas.")
-        validar(fecha_boletin, filas)
+        html_txt = HTML_DEMO if demo else descargar_html()
+        fecha_boletin, niveles = parsear(html_txt)
+        print(f"[i] Fila 'Alerta' de hoy: fecha={fecha_boletin} niveles={niveles}")
+        validar(fecha_boletin, niveles)
         print("[✓] Validación OK.\n")
-        registros = construir_registros(fecha_boletin, filas)
+
+        if demo or dry:
+            key = os.environ.get("SUPABASE_SERVICE_KEY", "")
+            if key:
+                territorio_map = resolver_territorios(COL_A_CODIGO, key)
+            else:
+                territorio_map = {c: f"<uuid-{c}>" for c in COL_A_CODIGO}
+            registros = construir_registros(fecha_boletin, niveles, territorio_map)
+            print("[i] Registros que se escribirían (no se escribe en demo/dry-run):\n")
+            print(json.dumps(registros, indent=2, ensure_ascii=False))
+            return
+
+        key = os.environ["SUPABASE_SERVICE_KEY"]
+        territorio_map = resolver_territorios(COL_A_CODIGO, key)
+        registros = construir_registros(fecha_boletin, niveles, territorio_map)
         escribir_supabase(registros)
-        print(f"\n[✓] {len(registros)} registros listos para condiciones_diarias.")
+        print(f"\n[✓] {len(registros)} zonas actualizadas para {fecha_boletin}.")
     except ValidacionError as e:
-        # Fallo controlado: NO se escribe nada. El motor tratará la ausencia de
-        # dato fresco como rojo, que es el comportamiento seguro.
         print(f"[✗] Validación falló: {e}")
         print("    No se escribe nada. La app degradará a rojo por falta de dato fresco.")
         sys.exit(1)

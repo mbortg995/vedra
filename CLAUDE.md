@@ -113,8 +113,12 @@ desde el día 1. Siguientes pasos previstos, en orden:
 
 ## Fuentes de datos conocidas
 
-- Preemergencia CV (7 zonas Previfoc, niveles 1/2/3, diario vía AEMET):
-  https://prevencionincendiosgva.es/Meteorology/NivelPreemergencia
+- Preemergencia CV (7 zonas Previfoc, niveles 1/2/3, diario vía AEMET). Endpoint
+  real que usa la ingesta (tabla HTML server-rendered, sin JS; fila "Alerta" =
+  nivel de incendios, "Tormenta" se ignora):
+  https://prevencionincendiosgva.es/Meteorologia/NivelPreemergenciaList
+  Zonas en orden de columna (ZonaID 1..7 -> CV-PREF-Z1..Z7): Zona 1 Norte, Zona 1
+  Sur, Zona 2, Zona 3, Zona 4, Zona 5, Zona 6.
 - Regla real ya identificada: prohibida la quema en terreno forestal y su zona de
   influencia entre el 1 de junio y el 15 de octubre, salvo plan local de quemas en
   zonas de bajo riesgo con preemergencia nivel 1 y hasta las 11:00 h máximo.
