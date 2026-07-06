@@ -1,0 +1,32 @@
+name: Ingesta preemergencia CV
+
+# Nivel diario de preemergencia de incendios de la Comunitat Valenciana.
+# Escribe en condiciones_diarias vía REST con la service_role (secrets del repo).
+# Diseño defensivo: si el parseo falla, el script sale con error y NO escribe;
+# la app degrada a rojo por falta de dato fresco, que es lo seguro.
+
+on:
+  schedule:
+    # UTC. Dos intentos por si el boletín de la mañana llega tarde (el upsert es
+    # idempotente). ~08:30 y ~11:30 hora peninsular en verano.
+    - cron: "30 6 * * *"
+    - cron: "30 9 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: ingesta-preemergencia
+  cancel-in-progress: false
+
+jobs:
+  ingesta:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Ejecutar ingesta (solo stdlib, sin dependencias)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python3 ingesta_preemergencia.py
