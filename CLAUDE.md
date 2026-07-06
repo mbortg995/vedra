@@ -61,9 +61,13 @@ de seguir.
 
 - `README.md` — visión de producto y decisiones.
 - `motor_evaluacion.md` — contrato del motor: entrada, salida, lógica del semáforo.
-- `motor.py` — implementación de referencia (5 casos pasando). Capa de datos
-  simulada con diccionarios; en producción son queries a Supabase. La lógica del
-  semáforo NO cambia al conectar datos reales.
+- `motor.py` — implementación de referencia del semáforo (5 casos pasando).
+  Recibe un proveedor de datos; la lógica NO cambia según la fuente.
+- `datos.py` — capa de acceso a datos con dos proveedores de la misma interfaz:
+  `DatosMemoria` (diccionarios, para los tests) y `DatosSupabase` (REST/PostgREST,
+  solo stdlib). Aquí se separan los datos de la lógica.
+- `validar_supabase.py` — evaluación en vivo del motor contra Supabase (usa el
+  `.env`). Resuelve territorios por la RPC espacial `territorios_en_punto`.
 - `ingesta_preemergencia.py` — pipeline diario de preemergencia de la Comunitat
   Valenciana. `python3 ingesta_preemergencia.py --demo` lo ejecuta sin red.
 
