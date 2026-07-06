@@ -25,3 +25,7 @@ Thumbs.db
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
+
+# Contexto local (renders desechables; la fuente canónica del esquema será schema.sql)
+erd_motor_normativa_outdoor.html
+motor_permisos_outdoor.svg
