@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'supabase_api.dart';
 import 'semaforo.dart';
 import 'theme.dart';
+import 'ubicacion.dart';
 
 void main() => runApp(const VedraApp());
 
@@ -19,7 +20,7 @@ class VedraApp extends StatelessWidget {
   }
 }
 
-/// Ubicaciones de prueba (hasta que integremos el GPS del dispositivo).
+/// Puntos de prueba (fallback si no hay GPS o se deniega el permiso).
 const _ubicaciones = {
   'Castelló (interior CV)': [39.9864, -0.0513],
   'Penyagolosa (CV)': [40.22, -0.30],
@@ -41,12 +42,42 @@ class PantallaSemaforo extends StatefulWidget {
 class _PantallaSemaforoState extends State<PantallaSemaforo> {
   final _api = SupabaseApi();
   String _actividad = 'pesca';
-  String _ubicacion = 'Castelló (interior CV)';
+  double _lat = 39.9864;
+  double _lon = -0.0513;
+  String _ubicacionLabel = 'Castelló (interior CV)';
+  bool _cargandoGps = false;
   Future<Resultado>? _futuro;
 
+  Future<void> _usarGps() async {
+    setState(() => _cargandoGps = true);
+    try {
+      final u = await ServicioUbicacion.actual();
+      setState(() {
+        _lat = u.lat;
+        _lon = u.lon;
+        _ubicacionLabel = 'Mi ubicación';
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
+      }
+    } finally {
+      if (mounted) setState(() => _cargandoGps = false);
+    }
+  }
+
+  void _elegirPunto(String key) {
+    final c = _ubicaciones[key]!;
+    setState(() {
+      _lat = c[0];
+      _lon = c[1];
+      _ubicacionLabel = key;
+    });
+  }
+
   void _consultar() {
-    final c = _ubicaciones[_ubicacion]!;
-    final f = evaluar(_api, _actividad, c[0], c[1]);
+    final f = evaluar(_api, _actividad, _lat, _lon);
     setState(() {
       _futuro = f;
     });
@@ -77,16 +108,36 @@ class _PantallaSemaforoState extends State<PantallaSemaforo> {
                   .toList(),
               onChanged: (v) => setState(() => _actividad = v!),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 18),
+            Text('Ubicación', style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(height: 8),
+            FilledButton.tonalIcon(
+              onPressed: _cargandoGps ? null : _usarGps,
+              icon: _cargandoGps
+                  ? const SizedBox(
+                      width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.my_location),
+              label: const Text('Usar mi ubicación'),
+            ),
+            const SizedBox(height: 10),
             DropdownButtonFormField<String>(
-              initialValue: _ubicacion,
+              initialValue:
+                  _ubicaciones.containsKey(_ubicacionLabel) ? _ubicacionLabel : null,
               decoration: const InputDecoration(
-                  labelText: 'Ubicación', prefixIcon: Icon(Icons.place_outlined)),
+                  labelText: 'O un punto de prueba', prefixIcon: Icon(Icons.place_outlined)),
               items: _ubicaciones.keys
                   .map((k) => DropdownMenuItem(value: k, child: Text(k)))
                   .toList(),
-              onChanged: (v) => setState(() => _ubicacion = v!),
+              onChanged: (v) => _elegirPunto(v!),
             ),
+            const SizedBox(height: 10),
+            Row(children: [
+              Icon(Icons.place, size: 18, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 6),
+              Expanded(
+                  child: Text('Consultando en: $_ubicacionLabel',
+                      style: Theme.of(context).textTheme.bodySmall)),
+            ]),
             const SizedBox(height: 20),
             FilledButton.icon(
               onPressed: _consultar,
