@@ -127,24 +127,22 @@ class _ConsultaTabState extends State<ConsultaTab> {
             label: const Text('Consultar'),
           ),
           const SizedBox(height: 24),
-          if (_futuro != null) _resultado(),
+          _resultado(),
         ],
       ),
     );
   }
 
   Widget _resultado() {
+    if (_futuro == null) return const _EstadoVacio();
     return FutureBuilder<Resultado>(
       future: _futuro,
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
-          return const Padding(
-            padding: EdgeInsets.only(top: 32),
-            child: Center(child: CircularProgressIndicator()),
-          );
+          return const _EstadoCargando();
         }
         if (snap.hasError) {
-          return const _AvisoError();
+          return _AvisoError(onReintentar: _consultar);
         }
         return TarjetaSemaforo(res: snap.data!);
       },
@@ -274,26 +272,91 @@ class TarjetaSemaforo extends StatelessWidget {
   }
 }
 
-class _AvisoError extends StatelessWidget {
-  const _AvisoError();
+/// Estado inicial: aún no se ha consultado. Guía al siguiente paso.
+class _EstadoVacio extends StatelessWidget {
+  const _EstadoVacio();
   @override
   Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.outline;
+    return Padding(
+      padding: const EdgeInsets.only(top: 24),
+      child: Column(
+        children: [
+          Icon(Icons.eco_outlined, size: 56, color: muted),
+          const SizedBox(height: 12),
+          Text('Pulsa "Consultar" para ver tu semáforo',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text('Te diremos si puedes, con la normativa oficial de tu zona.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium),
+        ],
+      ),
+    );
+  }
+}
+
+/// Estado de carga con contexto (no un spinner suelto).
+class _EstadoCargando extends StatelessWidget {
+  const _EstadoCargando();
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 32),
+      child: Column(
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: 16),
+          Text('Consultando la normativa oficial…',
+              style: Theme.of(context).textTheme.bodyMedium),
+        ],
+      ),
+    );
+  }
+}
+
+/// Error técnico (p. ej. sin conexión). Distinto del rojo normativo: aquí NO hay
+/// veredicto — se ofrece reintentar y se recuerda no darlo por permitido.
+class _AvisoError extends StatelessWidget {
+  const _AvisoError({required this.onReintentar});
+  final VoidCallback onReintentar;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Card(
-      color: Theme.of(context).colorScheme.errorContainer,
-      child: const Padding(
-        padding: EdgeInsets.all(16),
-        child: Row(children: [
-          Icon(Icons.wifi_off_rounded),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('No hemos podido consultar ahora mismo.',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(height: 4),
-              Text('Revisa tu conexión e inténtalo de nuevo.'),
+      color: scheme.surfaceContainerHighest,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(Icons.wifi_off_rounded, color: scheme.onSurfaceVariant),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text('No hemos podido consultar ahora mismo.',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold)),
+              ),
             ]),
-          ),
-        ]),
+            const SizedBox(height: 8),
+            const Text('Parece un problema de conexión. Esto no es una respuesta '
+                'oficial: mientras no podamos comprobarlo, no des por hecho que puedes.'),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton.tonalIcon(
+                onPressed: onReintentar,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reintentar'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
