@@ -1,0 +1,23 @@
+[
+  {
+    "territorio_codigo": "CV",
+    "actividad_slug": "quema",
+    "fuente": {
+      "organismo": "GVA - Conselleria de Medi Ambient (Decreto 91/2023, Reglamento de la Ley 3/1993 Forestal de la CV)",
+      "url": "https://prevencionincendiosgva.es/Meteorologia/NivelPreemergenciaList",
+      "fecha_publicacion": "2023-06-22"
+    },
+    "capa": "estacional",
+    "efecto": "limita",
+    "parametros": {
+      "periodo": ["06-01", "10-15"],
+      "solo_si_preemergencia": "1",
+      "hasta_hora": "11:00",
+      "plan_local_requerido": true,
+      "zona": "bajo_riesgo"
+    },
+    "vigencia": null,
+    "detalle": "Prohibida la quema en terreno forestal y su zona de influencia del 1 de junio al 15 de octubre, salvo plan local de quemas aprobado en zonas de bajo riesgo, con preemergencia nivel 1 y hasta las 11:00 h.",
+    "cita": "Queda prohibida la quema de residuos vegetales generados en el entorno agrario o selvícola en terreno forestal y su Zona de Influencia Forestal durante el periodo comprendido entre el 1 de junio y el 15 de octubre, ambos inclusive, salvo que esta actividad se contemple en un plan local de quemas aprobado por el órgano competente en zonas de bajo riesgo, con nivel de preemergencia 1 y hasta las 11 horas como máximo."
+  }
+]
