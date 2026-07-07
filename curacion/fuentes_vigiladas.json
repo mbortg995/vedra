@@ -1,0 +1,14 @@
+{
+  "_nota": "Fuentes normativas vigiladas (Fase 7b). El hash es del texto visible; si cambia, hay que re-curar a borrador. Vigilar documentos ESTABLES (una norma), no páginas que cambian a diario (p. ej. el boletín diario de preemergencia).",
+  "fuentes": [
+    {
+      "id": "pesca_orden_30_2016",
+      "descripcion": "Pesca continental CV — ORDEN 30/2016 (periodos hábiles, tallas, cupos)",
+      "url": "https://noticias.juridicas.com/base_datos/CCAA/585123-orden-30-2016-de-31-oct-ca-valenciana-periodos-habiles-y-las-normas-generales.html",
+      "actividad": "pesca",
+      "territorio": "CV",
+      "hash": "afe3cd7b6eadde385f16bf50b4d43ae27a55decb8393918a34bf51a764d67552",
+      "revisado_en": "2026-07-07T06:34:15.139245+00:00"
+    }
+  ]
+}

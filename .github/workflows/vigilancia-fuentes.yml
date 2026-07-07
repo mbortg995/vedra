@@ -1,0 +1,47 @@
+name: Vigilancia fuentes normativas
+
+# Fase 7b (detección, gratis y sin IA). Comprueba semanalmente si un documento
+# oficial vigilado ha cambiado (compara hashes en curacion/fuentes_vigiladas.json).
+# Si cambia, abre un issue para que se cure a borrador. NO publica ni extrae aquí:
+# la extracción (IA) la hace Claude a demanda, siguiendo curacion.md.
+
+on:
+  schedule:
+    - cron: "0 7 * * 1"   # lunes 07:00 UTC (semanal; la normativa cambia poco)
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  vigilancia:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Comprobar fuentes vigiladas
+        id: check
+        run: |
+          if python3 vigilancia_fuentes.py --check | tee salida.txt; then
+            echo "cambios=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "cambios=si" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Abrir issue si hay cambios (evita duplicados)
+        if: steps.check.outputs.cambios == 'si'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          abiertos=$(gh issue list --state open --search 'in:title Vigilancia normativa' --json number --jq 'length')
+          if [ "$abiertos" = "0" ]; then
+            gh issue create \
+              --title "Vigilancia normativa: fuente cambiada ($(date +%F))" \
+              --body-file salida.txt
+          else
+            echo "Ya hay un issue de vigilancia abierto; no se duplica."
+          fi

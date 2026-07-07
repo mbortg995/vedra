@@ -51,3 +51,17 @@ Lista de objetos regla:
 
 `parametros` es libre (jsonb): `talla_min_cm`, `cupo_dia`, `periodo`, `hasta_hora`,
 `solo_si_preemergencia`, etc. Lo interpreta el motor según la actividad.
+
+## Vigilancia de fuentes (Fase 7b)
+
+`vigilancia_fuentes.py` detecta (sin IA, solo hashes) si un documento oficial
+vigilado ha cambiado. Estado en `curacion/fuentes_vigiladas.json`.
+
+- **Detección**: la GitHub Action `vigilancia-fuentes.yml` corre semanal y, si una
+  fuente cambia, abre un issue. Es gratis y no gasta plan.
+- **Extracción a borrador** (IA): a demanda, cuando el issue avisa. Claude re-lee
+  el documento, extrae las reglas al JSON y las inserta con `curacion.py` (borrador).
+  Tras curar: `python3 vigilancia_fuentes.py --update` para fijar el nuevo hash.
+- **Publicar**: siempre manual (regla de oro).
+
+Añadir una fuente: nueva entrada en `fuentes_vigiladas.json` y `--init` para su hash.
