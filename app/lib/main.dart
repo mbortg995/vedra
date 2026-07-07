@@ -1,122 +1,169 @@
 import 'package:flutter/material.dart';
+import 'supabase_api.dart';
+import 'semaforo.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+void main() => runApp(const VedraApp());
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  // This widget is the root of your application.
+class VedraApp extends StatelessWidget {
+  const VedraApp({super.key});
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Vedra',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        colorSchemeSeed: const Color(0xFF2E7D32),
+        useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const PantallaSemaforo(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+/// Ubicaciones de prueba (hasta que integremos el GPS del dispositivo).
+const _ubicaciones = {
+  'Castelló (interior CV)': [39.9864, -0.0513],
+  'Penyagolosa (CV)': [40.22, -0.30],
+  'Madrid (fuera de la CV)': [40.42, -3.70],
+};
+const _actividades = {
+  'pesca': 'Pesca',
+  'quema': 'Quema de residuos',
+  'fuego_recreativo': 'Fuego recreativo',
+  'setas': 'Setas',
+};
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
+class PantallaSemaforo extends StatefulWidget {
+  const PantallaSemaforo({super.key});
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<PantallaSemaforo> createState() => _PantallaSemaforoState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _PantallaSemaforoState extends State<PantallaSemaforo> {
+  final _api = SupabaseApi();
+  String _actividad = 'pesca';
+  String _ubicacion = 'Castelló (interior CV)';
+  Future<Resultado>? _futuro;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  void _consultar() {
+    final c = _ubicaciones[_ubicacion]!;
+    setState(() => _futuro = evaluar(_api, _actividad, c[0], c[1]));
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
+      appBar: AppBar(title: const Text('Vedra — ¿puedo hacerlo aquí hoy?')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+            DropdownButtonFormField<String>(
+              initialValue: _actividad,
+              decoration: const InputDecoration(labelText: 'Actividad'),
+              items: _actividades.entries
+                  .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                  .toList(),
+              onChanged: (v) => setState(() => _actividad = v!),
             ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _ubicacion,
+              decoration: const InputDecoration(labelText: 'Ubicación'),
+              items: _ubicaciones.keys
+                  .map((k) => DropdownMenuItem(value: k, child: Text(k)))
+                  .toList(),
+              onChanged: (v) => setState(() => _ubicacion = v!),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: _consultar,
+              icon: const Icon(Icons.search),
+              label: const Text('Consultar'),
+            ),
+            const SizedBox(height: 16),
+            Expanded(child: _resultado()),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+    );
+  }
+
+  Widget _resultado() {
+    if (_futuro == null) {
+      return const Center(child: Text('Elige actividad y ubicación, y pulsa Consultar.'));
+    }
+    return FutureBuilder<Resultado>(
+      future: _futuro,
+      builder: (context, snap) {
+        if (snap.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snap.hasError) {
+          return Center(child: Text('Error: ${snap.error}'));
+        }
+        return _TarjetaSemaforo(res: snap.data!);
+      },
+    );
+  }
+}
+
+class _TarjetaSemaforo extends StatelessWidget {
+  const _TarjetaSemaforo({required this.res});
+  final Resultado res;
+
+  static const _colores = {
+    'verde': Color(0xFF2E7D32),
+    'amarillo': Color(0xFFF9A825),
+    'rojo': Color(0xFFC62828),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _colores[res.semaforo]!;
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            CircleAvatar(radius: 16, backgroundColor: color),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(res.titulo,
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          if (res.territorios.isNotEmpty)
+            _seccion('Dónde estás', [
+              for (final t in res.territorios) '• ${t['nombre']}',
+            ]),
+          if (res.condicion != null)
+            _seccion('Preemergencia', [
+              '• Nivel ${res.condicion!['nivel']} '
+                  '(${res.condicionFresca ? 'fresco' : 'CADUCO'})',
+            ]),
+          if (res.bloqueos.isNotEmpty)
+            _seccion('Bloqueos', [for (final b in res.bloqueos) '⛔ ${b['detalle']}']),
+          if (res.requisitos.isNotEmpty)
+            _seccion('Requisitos', [for (final q in res.requisitos) '✗ ${q['detalle']}']),
+          if (res.avisos.isNotEmpty)
+            _seccion('A tener en cuenta', [for (final a in res.avisos) 'ℹ $a']),
+          const SizedBox(height: 12),
+          Text(res.disclaimer, style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 12)),
+        ],
       ),
     );
   }
+
+  Widget _seccion(String titulo, List<String> lineas) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold)),
+            for (final l in lineas) Text(l),
+          ],
+        ),
+      );
 }
