@@ -70,6 +70,9 @@ de seguir.
   `.env`). Resuelve territorios por la RPC espacial `territorios_en_punto`.
 - `ingesta_preemergencia.py` — pipeline diario de preemergencia de la Comunitat
   Valenciana. `python3 ingesta_preemergencia.py --demo` lo ejecuta sin red.
+- `curacion.py` + `curacion.md` — curación asistida: JSON de reglas (extraído por
+  Claude) → `borrador` → revisión humana → `publicada`. El script nunca publica
+  sin pasar por `revisada`. Solo stdlib.
 
 ## Contrato del motor (resumen)
 

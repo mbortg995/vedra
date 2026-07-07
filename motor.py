@@ -18,9 +18,9 @@ from dataclasses import dataclass, field
 # ----------------------------------------------------------------------------
 
 # Actividades cuya seguridad depende del dato diario. Si falta o es viejo -> rojo.
-DEPENDE_DE_DIA = {"fuego_recreativo"}
+DEPENDE_DE_DIA = {"fuego_recreativo", "quema"}
 # Con preemergencia 3, estas actividades también se ven afectadas.
-AFECTADAS_POR_PREEMERGENCIA_3 = {"fuego_recreativo", "acampada", "setas"}
+AFECTADAS_POR_PREEMERGENCIA_3 = {"fuego_recreativo", "acampada", "setas", "quema"}
 # El boletín es diario; 30 h da margen a un retraso antes de considerarlo caduco.
 FRESCURA_MAX = timedelta(hours=30)
 
