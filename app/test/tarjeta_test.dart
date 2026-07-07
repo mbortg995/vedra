@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vedra/main.dart';
+import 'package:vedra/pantalla_consulta.dart';
 import 'package:vedra/semaforo.dart';
 
 void main() {
