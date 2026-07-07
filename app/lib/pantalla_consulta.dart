@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'supabase_api.dart';
 import 'semaforo.dart';
 import 'theme.dart';
 import 'ubicacion.dart';
+import 'pantalla_mapa.dart';
 
-/// Puntos de prueba (fallback si no hay GPS o se deniega el permiso).
-const _ubicaciones = {
-  'Castelló (interior CV)': [39.9864, -0.0513],
-  'Penyagolosa (CV)': [40.22, -0.30],
-  'Madrid (fuera de la CV)': [40.42, -3.70],
-};
 const _actividades = {
   'pesca': 'Pesca',
   'quema': 'Quema de residuos',
@@ -53,13 +49,17 @@ class _ConsultaTabState extends State<ConsultaTab> {
     }
   }
 
-  void _elegirPunto(String key) {
-    final c = _ubicaciones[key]!;
-    setState(() {
-      _lat = c[0];
-      _lon = c[1];
-      _ubicacionLabel = key;
-    });
+  Future<void> _elegirEnMapa() async {
+    final punto = await Navigator.of(context).push<LatLng>(
+      MaterialPageRoute(builder: (_) => PantallaMapa(inicial: LatLng(_lat, _lon))),
+    );
+    if (punto != null) {
+      setState(() {
+        _lat = punto.latitude;
+        _lon = punto.longitude;
+        _ubicacionLabel = 'Punto en el mapa';
+      });
+    }
   }
 
   void _consultar() {
@@ -102,15 +102,13 @@ class _ConsultaTabState extends State<ConsultaTab> {
             label: const Text('Usar mi ubicación'),
           ),
           const SizedBox(height: 10),
-          DropdownButtonFormField<String>(
-            initialValue:
-                _ubicaciones.containsKey(_ubicacionLabel) ? _ubicacionLabel : null,
-            decoration: const InputDecoration(
-                labelText: 'O un punto de prueba', prefixIcon: Icon(Icons.place_outlined)),
-            items: _ubicaciones.keys
-                .map((k) => DropdownMenuItem(value: k, child: Text(k)))
-                .toList(),
-            onChanged: (v) => _elegirPunto(v!),
+          OutlinedButton.icon(
+            onPressed: _elegirEnMapa,
+            style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+            icon: const Icon(Icons.map_outlined),
+            label: const Text('Elegir en el mapa'),
           ),
           const SizedBox(height: 10),
           Row(children: [
