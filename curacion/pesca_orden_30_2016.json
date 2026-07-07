@@ -1,0 +1,77 @@
+[
+  {
+    "territorio_codigo": "CV",
+    "actividad_slug": "pesca",
+    "fuente": {
+      "organismo": "GVA - Conselleria d'Agricultura, Medi Ambient, Canvi Climàtic i Desenvolupament Rural",
+      "url": "https://noticias.juridicas.com/base_datos/CCAA/585123-orden-30-2016-de-31-oct-ca-valenciana-periodos-habiles-y-las-normas-generales.html",
+      "fecha_publicacion": "2016-10-31"
+    },
+    "capa": "permanente",
+    "efecto": "limita",
+    "parametros": {"modalidad": "pesca_sin_muerte", "especies": ["Trucha común (Salmo trutta)", "Barbos (Barbus sp.)", "Cacho (Squalius valentinus)"]},
+    "vigencia": null,
+    "detalle": "Trucha común, barbos y cacho: solo pesca sin muerte.",
+    "cita": "Especies objeto de pesca y tallas mínimas: Trucha común (Salmo trutta) — Pesca sin muerte; Barbos (Barbus sp.) — Pesca sin muerte; Cacho (Squalius valentinus) — Pesca sin muerte. (Art. 2)"
+  },
+  {
+    "territorio_codigo": "CV",
+    "actividad_slug": "pesca",
+    "fuente": {
+      "organismo": "GVA - Conselleria d'Agricultura, Medi Ambient, Canvi Climàtic i Desenvolupament Rural",
+      "url": "https://noticias.juridicas.com/base_datos/CCAA/585123-orden-30-2016-de-31-oct-ca-valenciana-periodos-habiles-y-las-normas-generales.html",
+      "fecha_publicacion": "2016-10-31"
+    },
+    "capa": "permanente",
+    "efecto": "limita",
+    "parametros": {"especie": "Llobarro-lubina (Dicentrarchus labrax)", "talla_min_cm": 25, "cupo_dia": 4},
+    "vigencia": null,
+    "detalle": "Llobarro/lubina: talla mínima 25 cm y cupo de 4 ejemplares por día.",
+    "cita": "Llobarro-lubina (Dicentrarchus labrax) 25 cm. Cupo diario 4. (Art. 2)"
+  },
+  {
+    "territorio_codigo": "CV",
+    "actividad_slug": "pesca",
+    "fuente": {
+      "organismo": "GVA - Conselleria d'Agricultura, Medi Ambient, Canvi Climàtic i Desenvolupament Rural",
+      "url": "https://noticias.juridicas.com/base_datos/CCAA/585123-orden-30-2016-de-31-oct-ca-valenciana-periodos-habiles-y-las-normas-generales.html",
+      "fecha_publicacion": "2016-10-31"
+    },
+    "capa": "permanente",
+    "efecto": "limita",
+    "parametros": {"especie": "Mugílidos (Chelon sp., Liza sp., Mugil sp.)", "talla_min_cm": 25, "cupo_dia": 4},
+    "vigencia": null,
+    "detalle": "Mugílidos: talla mínima 25 cm y cupo de 4 ejemplares por día.",
+    "cita": "Mugílidos (Chelon sp., Liza sp., Mugil sp.) 25 cm. Cupo diario 4. (Art. 2)"
+  },
+  {
+    "territorio_codigo": "CV",
+    "actividad_slug": "pesca",
+    "fuente": {
+      "organismo": "GVA - Conselleria d'Agricultura, Medi Ambient, Canvi Climàtic i Desenvolupament Rural",
+      "url": "https://noticias.juridicas.com/base_datos/CCAA/585123-orden-30-2016-de-31-oct-ca-valenciana-periodos-habiles-y-las-normas-generales.html",
+      "fecha_publicacion": "2016-10-31"
+    },
+    "capa": "permanente",
+    "efecto": "limita",
+    "parametros": {"regla": "devolver_bajo_talla"},
+    "vigencia": null,
+    "detalle": "Los ejemplares de medida inferior a la mínima deben devolverse de inmediato al agua.",
+    "cita": "Todos aquellos ejemplares que se capturen de medida inferior a la establecida deberán restituirse de inmediato al agua de la que fueron extraídos. (Art. 2)"
+  },
+  {
+    "territorio_codigo": "CV",
+    "actividad_slug": "pesca",
+    "fuente": {
+      "organismo": "GVA - Conselleria d'Agricultura, Medi Ambient, Canvi Climàtic i Desenvolupament Rural",
+      "url": "https://noticias.juridicas.com/base_datos/CCAA/585123-orden-30-2016-de-31-oct-ca-valenciana-periodos-habiles-y-las-normas-generales.html",
+      "fecha_publicacion": "2016-10-31"
+    },
+    "capa": "estacional",
+    "efecto": "limita",
+    "parametros": {"ambito": "aguas trucheras", "periodo_habil": "del tercer domingo de marzo al 31 de agosto", "dias_habiles": ["viernes", "sábado", "domingo", "festivos"], "excepcion": "Río Chelva/Tuéjar: todo el año"},
+    "vigencia": null,
+    "detalle": "Pesca de trucha: del tercer domingo de marzo al 31 de agosto; días hábiles viernes, sábado, domingo y festivos. Río Chelva/Tuéjar, todo el año.",
+    "cita": "El periodo hábil de pesca abarca desde el tercer domingo de marzo hasta el 31 de agosto, salvo el Río Chelva/Tuéjar cuyo periodo abarca todo el año. Los días de pesca son viernes, sábados, domingos y festivos nacionales y autonómicos. (Art. 6 y 7)"
+  }
+]
