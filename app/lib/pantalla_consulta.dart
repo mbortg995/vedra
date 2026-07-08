@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'actividades.dart';
+import 'licencia.dart';
 import 'preferencias.dart';
+import 'servicio_auth.dart';
+import 'servicio_licencias.dart';
 import 'supabase_api.dart';
 import 'semaforo.dart';
 import 'theme.dart';
@@ -18,6 +21,8 @@ class ConsultaTab extends StatefulWidget {
 
 class _ConsultaTabState extends State<ConsultaTab> {
   final _api = SupabaseApi();
+  final _auth = ServicioAuth();
+  final _lic = ServicioLicencias();
   String _actividad = 'pesca';
   double _lat = 39.9864;
   double _lon = -0.0513;
@@ -75,10 +80,27 @@ class _ConsultaTabState extends State<ConsultaTab> {
   }
 
   void _consultar() {
-    final f = evaluar(_api, _actividad, _lat, _lon);
-    setState(() {
-      _futuro = f;
-    });
+    setState(() => _futuro = _evaluar());
+  }
+
+  /// Evalúa el semáforo cruzando las licencias del usuario (si hay sesión): una
+  /// regla que exige una licencia que tienes vigente deja de pintar amarillo.
+  Future<Resultado> _evaluar() async {
+    var cumplidos = <String>{};
+    if (_auth.haySesion) {
+      try {
+        final licencias = await _lic.misLicencias();
+        cumplidos = {
+          for (final l in licencias)
+            if (estadoVencimiento(l.vence) != EstadoVencimiento.caducada)
+              l.tipoRequisitoId,
+        };
+      } catch (_) {
+        // Si no podemos leer las licencias, seguimos sin ellas: como mucho sale
+        // amarillo por requisito no confirmado (lado seguro).
+      }
+    }
+    return evaluar(_api, _actividad, _lat, _lon, requisitosCumplidos: cumplidos);
   }
 
   @override
