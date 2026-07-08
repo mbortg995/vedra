@@ -1,0 +1,43 @@
+name: CI app (Flutter)
+
+# Corre analyze + test de la app en cada PR (y en push a main) que toque `app/`.
+# Falla si analyze o test fallan, para no mergear código roto. No necesita
+# secretos: los tests usan mocks y no arrancan Supabase.
+
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - ".github/workflows/ci-app.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - ".github/workflows/ci-app.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  analizar-y-testear:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.5" # misma que en local (reproducibilidad)
+          channel: stable
+          cache: true
+
+      - name: Dependencias
+        run: flutter pub get
+
+      - name: Analyze (falla ante cualquier issue)
+        run: flutter analyze
+
+      - name: Tests
+        run: flutter test
