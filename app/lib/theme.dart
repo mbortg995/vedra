@@ -27,6 +27,12 @@ class VedraTheme {
         'rojo': Icons.block_rounded,
       }[s] ?? Icons.help_rounded;
 
+  /// Lectura del estado para lectores de pantalla: el color no llega a quien no
+  /// ve, así que el veredicto se nombra en palabras (VoiceOver/TalkBack).
+  static String estadoLegible(String s) =>
+      {'verde': 'Permitido', 'amarillo': 'Atención', 'rojo': 'No permitido'}[s] ??
+      'Sin determinar';
+
   static ThemeData light() {
     final base = ThemeData(
       colorSchemeSeed: _semilla,
