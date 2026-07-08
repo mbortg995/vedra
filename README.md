@@ -68,8 +68,10 @@ fuego". Por eso:
 
 | Pieza | Elección | Motivo |
 |-------|----------|--------|
-| Backend | **Supabase** (PostgreSQL + PostGIS) | El producto es un problema relacional-espacial. Postgres gestionado, RLS, auth y API REST resueltos, menos piezas para un mantenedor único. |
+| Backend | **Supabase** (PostgreSQL + PostGIS) | El producto es un problema relacional-espacial. Postgres gestionado, RLS y API REST resueltos, menos piezas para un mantenedor único. |
 | Móvil | **Flutter** | Un código para Android + iOS, buen soporte de mapas offline, menos sorpresas en solitario. |
+| Autenticación | **Supabase Auth** (correo + código OTP) | Sesión persistente y RLS por `auth.uid()` sin montar backend propio. Login **opcional**: consultar el semáforo no pide cuenta; solo hace falta para guardar licencias. |
+| Correo transaccional | **Brevo** (SMTP) | Envía el código de acceso (y los avisos de caducidad). SMTP propio para no depender del limitado de Supabase; gratis hasta 300 correos/día. Pendiente dominio + DKIM para envío de producción. |
 | Suscripciones | **RevenueCat** | Abstrae Google Play + App Store, gestiona renovaciones y churn. |
 | Ingesta y curación | **Python (solo stdlib) + GitHub Actions** | Cron gratis con logs para el dato diario. La curación de normativa (PDF/orden → reglas) la hace **Claude Code** (sesión o tarea programada sobre el plan de Claude), no una API de pago. |
 | Caché (previsto) | **Cloudflare** delante de todo | Las respuestas son idénticas para todos (salvo licencias), así que un pico viral se sirve desde CDN, no toca la base de datos. |
@@ -99,14 +101,21 @@ datos de usuario (LICENCIAS_USUARIO, ZONAS_SEGUIDAS) solo los ve su dueño.
 
 ## Estado actual
 
-Backend **completo y con datos reales**; primera pantalla de la app funcionando:
+Backend **completo y con datos reales**; app con varias pantallas funcionando:
 - Esquema PostGIS + índices espaciales; RLS; RPC espacial (migraciones versionadas).
 - Comunitat Valenciana con geometría **oficial** (IGN); 7 zonas Previfoc
   provisionales (pendiente la geometría oficial).
 - **Ingesta diaria** del nivel de preemergencia de la CV (GitHub Action, cron).
-- **Curación asistida** de normativa (pesca y quema ya publicadas) + **vigilancia**
-  semanal de fuentes que avisa por issue cuando una norma cambia.
-- App **Flutter**: pantalla del semáforo "aquí y ahora" leyendo de Supabase.
+- **Curación asistida** de normativa (pesca, quema y la obligación de licencia de
+  pesca ya publicadas) + **vigilancia** semanal de fuentes que avisa por issue
+  cuando una norma cambia.
+- App **Flutter** (Android/iOS/web):
+  - Semáforo "aquí y ahora" leyendo de Supabase, con ubicación por **GPS** o
+    eligiendo un **punto en el mapa**.
+  - **Onboarding** de primer uso, **navegación** inferior (Consulta / Licencias /
+    Ajustes) y **accesibilidad** (escalado de fuente, contraste, lectores).
+  - **Login** por correo + código OTP (Supabase Auth) y **cartera de licencias**
+    con vencimientos y avisos de caducidad.
 
 El backlog hacia el MVP vive en **GitHub Issues** (milestones `MVP` / `Post-MVP`,
 labels por área). Vista de un vistazo en el issue-checklist "🎯 MVP".

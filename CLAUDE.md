@@ -35,6 +35,11 @@ de seguir.
 
 - Backend: Supabase (PostgreSQL + PostGIS). Problema relacional-espacial.
 - Móvil: Flutter (un código para Android + iOS, mapas offline).
+- Autenticación: Supabase Auth (correo + código OTP; sesión persistente; RLS por
+  `auth.uid()`). Login OPCIONAL: consultar el semáforo no pide cuenta, solo hace
+  falta para guardar licencias.
+- Correo transaccional: Brevo (SMTP) para el código OTP y los avisos. SMTP propio
+  para no depender del limitado de Supabase. Pendiente dominio + DKIM (issue #47).
 - Suscripciones: RevenueCat (abstrae Google Play + App Store).
 - Ingesta: Python + GitHub Actions (cron gratis). Claude API ayuda a parsear
   órdenes de veda en PDF a filas de REGLAS en borrador.
