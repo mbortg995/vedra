@@ -1,11 +1,30 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'actividades.dart';
+import 'config.dart';
 import 'preferencias.dart';
+import 'pantalla_login.dart';
 import 'pantalla_onboarding.dart';
+import 'servicio_auth.dart';
 import 'theme.dart';
 import 'pantalla_consulta.dart';
 
-void main() => runApp(const VedraApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Inicia Supabase (restaura la sesión guardada, si la hay). La anon key es
+  // pública por diseño; la RLS protege los datos de usuario por auth.uid().
+  await Supabase.initialize(
+    url: Config.supabaseUrl,
+    // Nuestra clave es la anon key (JWT legacy). El SDK la renombró a
+    // `publishableKey`, pero `anonKey` sigue funcionando y describe lo que es.
+    // ignore: deprecated_member_use
+    anonKey: Config.supabaseAnonKey,
+  );
+  ServicioAuth.inicializado = true;
+  runApp(const VedraApp());
+}
 
 class VedraApp extends StatelessWidget {
   const VedraApp({super.key});
@@ -122,23 +141,99 @@ class _InicioVedraState extends State<InicioVedra> {
   }
 }
 
-class _LicenciasTab extends StatelessWidget {
+/// Pestaña "Mis licencias". Necesita sesión: sin ella, invita a entrar; con
+/// ella, la cartera (CRUD en un PR posterior). Se refresca al cambiar la sesión.
+class _LicenciasTab extends StatefulWidget {
   const _LicenciasTab();
   @override
+  State<_LicenciasTab> createState() => _LicenciasTabState();
+}
+
+class _LicenciasTabState extends State<_LicenciasTab> {
+  final _auth = ServicioAuth();
+  StreamSubscription<AuthState>? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = _auth.cambios.listen((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _login() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const PantallaLogin()),
+    );
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (!_auth.haySesion) {
+      return _InvitaLogin(onLogin: _login);
+    }
     return const _Proximamente(
       icono: Icons.badge_outlined,
       titulo: 'Tus licencias, en un sitio',
       texto:
           'Aquí guardarás tus licencias de pesca, caza y demás, y te avisaremos '
-          'antes de que caduquen. Además, el semáforo tendrá en cuenta lo que ya tienes.',
+          'antes de que caduquen. El semáforo tendrá en cuenta lo que ya tienes.',
     );
   }
 }
 
-/// Ajustes: por ahora, las actividades de interés (editables) y la opción de
-/// volver a ver la presentación. Es el sitio donde el usuario cambia lo que
-/// eligió en el onboarding (acceptación del issue #11).
+/// Invitación a iniciar sesión desde la pestaña de licencias (sin sesión).
+class _InvitaLogin extends StatelessWidget {
+  const _InvitaLogin({required this.onLogin});
+  final VoidCallback onLogin;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.badge_outlined, size: 64, color: scheme.primary),
+            const SizedBox(height: 16),
+            Semantics(
+              header: true,
+              child: Text('Guarda tus licencias',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleLarge),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Entra con tu correo para guardar tus licencias y que el semáforo '
+              'cuente con ellas. Consultar el semáforo no necesita cuenta.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: onLogin,
+              icon: const Icon(Icons.login),
+              label: const Text('Iniciar sesión'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Ajustes: actividades de interés (editables), cuenta (iniciar/cerrar sesión) y
+/// volver a ver la presentación. El sitio donde el usuario cambia lo que eligió
+/// en el onboarding (acceptación del issue #11).
 class AjustesTab extends StatefulWidget {
   const AjustesTab({super.key});
   @override
@@ -146,13 +241,24 @@ class AjustesTab extends StatefulWidget {
 }
 
 class _AjustesTabState extends State<AjustesTab> {
+  final _auth = ServicioAuth();
   Set<String> _actividades = {};
   bool _cargado = false;
+  StreamSubscription<AuthState>? _sub;
 
   @override
   void initState() {
     super.initState();
     _cargar();
+    _sub = _auth.cambios.listen((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
   }
 
   Future<void> _cargar() async {
@@ -168,6 +274,22 @@ class _AjustesTabState extends State<AjustesTab> {
   Future<void> _guardar(Set<String> nueva) async {
     setState(() => _actividades = nueva);
     await Preferencias.guardarActividadesInteres(nueva.toList());
+  }
+
+  Future<void> _login() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const PantallaLogin()),
+    );
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _cerrarSesion() async {
+    await _auth.cerrarSesion();
+    if (mounted) {
+      setState(() {});
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Sesión cerrada.')));
+    }
   }
 
   Future<void> _repetirPresentacion() async {
@@ -203,7 +325,9 @@ class _AjustesTabState extends State<AjustesTab> {
               style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 16),
           SelectorActividades(seleccion: _actividades, onCambio: _guardar),
-          const SizedBox(height: 32),
+          const SizedBox(height: 28),
+          const Divider(),
+          _seccionCuenta(),
           const Divider(),
           const SizedBox(height: 8),
           ListTile(
@@ -215,6 +339,38 @@ class _AjustesTabState extends State<AjustesTab> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _seccionCuenta() {
+    if (_auth.haySesion) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.account_circle_outlined),
+            title: const Text('Tu cuenta'),
+            subtitle: Text(_auth.correo ?? 'Sesión iniciada'),
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: _cerrarSesion,
+              icon: const Icon(Icons.logout),
+              label: const Text('Cerrar sesión'),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      );
+    }
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.login),
+      title: const Text('Iniciar sesión'),
+      subtitle: const Text('Para guardar tus licencias y sincronizar.'),
+      onTap: _login,
     );
   }
 }
