@@ -1,18 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'actividades.dart';
+import 'preferencias.dart';
 import 'supabase_api.dart';
 import 'semaforo.dart';
 import 'theme.dart';
 import 'ubicacion.dart';
 import 'pantalla_mapa.dart';
-
-const _actividades = {
-  'pesca': 'Pesca',
-  'quema': 'Quema de residuos',
-  'fuego_recreativo': 'Fuego recreativo',
-  'setas': 'Setas',
-};
 
 /// Pestaña "Consulta": el semáforo contextual "aquí y ahora".
 class ConsultaTab extends StatefulWidget {
@@ -29,6 +24,23 @@ class _ConsultaTabState extends State<ConsultaTab> {
   String _ubicacionLabel = 'Castelló (interior CV)';
   bool _cargandoGps = false;
   Future<Resultado>? _futuro;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarActividadPreferida();
+  }
+
+  /// Preselecciona la primera actividad de interés elegida en el onboarding.
+  Future<void> _cargarActividadPreferida() async {
+    final interes = await Preferencias.actividadesInteres();
+    final primera = interes.firstWhere(
+        (a) => actividadesCatalogo.containsKey(a),
+        orElse: () => '');
+    if (primera.isNotEmpty && mounted) {
+      setState(() => _actividad = primera);
+    }
+  }
 
   Future<void> _usarGps() async {
     setState(() => _cargandoGps = true);
@@ -85,7 +97,7 @@ class _ConsultaTabState extends State<ConsultaTab> {
             initialValue: _actividad,
             decoration: const InputDecoration(
                 labelText: 'Actividad', prefixIcon: Icon(Icons.category_outlined)),
-            items: _actividades.entries
+            items: actividadesCatalogo.entries
                 .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
                 .toList(),
             onChanged: (v) => setState(() => _actividad = v!),
