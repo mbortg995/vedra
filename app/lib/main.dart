@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'actividades.dart';
 import 'config.dart';
 import 'preferencias.dart';
+import 'pantalla_licencias.dart';
 import 'pantalla_login.dart';
 import 'pantalla_onboarding.dart';
 import 'servicio_auth.dart';
@@ -179,13 +180,7 @@ class _LicenciasTabState extends State<_LicenciasTab> {
     if (!_auth.haySesion) {
       return _InvitaLogin(onLogin: _login);
     }
-    return const _Proximamente(
-      icono: Icons.badge_outlined,
-      titulo: 'Tus licencias, en un sitio',
-      texto:
-          'Aquí guardarás tus licencias de pesca, caza y demás, y te avisaremos '
-          'antes de que caduquen. El semáforo tendrá en cuenta lo que ya tienes.',
-    );
+    return const CarteraLicencias();
   }
 }
 
@@ -371,47 +366,6 @@ class _AjustesTabState extends State<AjustesTab> {
       title: const Text('Iniciar sesión'),
       subtitle: const Text('Para guardar tus licencias y sincronizar.'),
       onTap: _login,
-    );
-  }
-}
-
-/// Placeholder amable para las secciones aún por construir.
-class _Proximamente extends StatelessWidget {
-  const _Proximamente({required this.icono, required this.titulo, required this.texto});
-  final IconData icono;
-  final String titulo;
-  final String texto;
-
-  @override
-  Widget build(BuildContext context) {
-    final muted = Theme.of(context).colorScheme.outline;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icono, size: 64, color: muted),
-            const SizedBox(height: 16),
-            Semantics(
-              header: true,
-              child: Text(titulo,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleLarge),
-            ),
-            const SizedBox(height: 8),
-            Text(texto,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: 20),
-            Chip(
-              avatar: const Icon(Icons.hourglass_top, size: 18),
-              label: const Text('Muy pronto'),
-              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
