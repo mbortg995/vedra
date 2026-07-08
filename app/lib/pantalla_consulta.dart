@@ -87,8 +87,11 @@ class _ConsultaTabState extends State<ConsultaTab> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text('¿Puedo hacerlo aquí hoy?',
-              style: Theme.of(context).textTheme.headlineSmall),
+          Semantics(
+            header: true,
+            child: Text('¿Puedo hacerlo aquí hoy?',
+                style: Theme.of(context).textTheme.headlineSmall),
+          ),
           const SizedBox(height: 4),
           Text('Elige la actividad y dónde estás.',
               style: Theme.of(context).textTheme.bodyMedium),
@@ -176,22 +179,28 @@ class TarjetaSemaforo extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            color: color,
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Icon(VedraTheme.icono(res.semaforo), color: sobre, size: 48),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(res.titulo,
-                      style: TextStyle(
-                          color: sobre,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          height: 1.2)),
+          Semantics(
+            header: true,
+            label: '${VedraTheme.estadoLegible(res.semaforo)}. ${res.titulo}',
+            child: ExcludeSemantics(
+              child: Container(
+                color: color,
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Icon(VedraTheme.icono(res.semaforo), color: sobre, size: 48),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(res.titulo,
+                          style: TextStyle(
+                              color: sobre,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              height: 1.2)),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
           Padding(
@@ -294,9 +303,12 @@ class _EstadoVacio extends StatelessWidget {
         children: [
           Icon(Icons.eco_outlined, size: 56, color: muted),
           const SizedBox(height: 12),
-          Text('Pulsa "Consultar" para ver tu semáforo',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium),
+          Semantics(
+            header: true,
+            child: Text('Pulsa "Consultar" para ver tu semáforo',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium),
+          ),
           const SizedBox(height: 4),
           Text('Te diremos si puedes, con la normativa oficial de tu zona.',
               textAlign: TextAlign.center,
@@ -318,8 +330,11 @@ class _EstadoCargando extends StatelessWidget {
         children: [
           const CircularProgressIndicator(),
           const SizedBox(height: 16),
-          Text('Consultando la normativa oficial…',
-              style: Theme.of(context).textTheme.bodyMedium),
+          Semantics(
+            liveRegion: true,
+            child: Text('Consultando la normativa oficial…',
+                style: Theme.of(context).textTheme.bodyMedium),
+          ),
         ],
       ),
     );
@@ -346,11 +361,14 @@ class _AvisoError extends StatelessWidget {
               Icon(Icons.wifi_off_rounded, color: scheme.onSurfaceVariant),
               const SizedBox(width: 12),
               Expanded(
-                child: Text('No hemos podido consultar ahora mismo.',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold)),
+                child: Semantics(
+                  header: true,
+                  child: Text('No hemos podido consultar ahora mismo.',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold)),
+                ),
               ),
             ]),
             const SizedBox(height: 8),

@@ -129,21 +129,26 @@ class _Controles extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              for (var i = 0; i < total; i++)
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: i == pagina ? 22 : 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: i == pagina ? scheme.primary : scheme.outlineVariant,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-            ],
+          Semantics(
+            label: 'Paso ${pagina + 1} de $total',
+            child: ExcludeSemantics(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (var i = 0; i < total; i++)
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: i == pagina ? 22 : 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: i == pagina ? scheme.primary : scheme.outlineVariant,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
           const SizedBox(height: 20),
           FilledButton(
@@ -181,7 +186,7 @@ class _Pagina extends StatelessWidget {
           const SizedBox(height: 8),
           Icon(icono, size: 56, color: theme.colorScheme.primary),
           const SizedBox(height: 20),
-          Text(titulo, style: theme.textTheme.headlineSmall),
+          Semantics(header: true, child: Text(titulo, style: theme.textTheme.headlineSmall)),
           const SizedBox(height: 8),
           Text(subtitulo, style: theme.textTheme.bodyLarge),
           const SizedBox(height: 24),

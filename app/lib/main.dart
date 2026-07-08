@@ -16,6 +16,18 @@ class VedraApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: VedraTheme.light(),
       home: const _Arranque(),
+      // Respeta el escalado de fuente del sistema (accesibilidad), pero lo acota
+      // para que un tamaño extremo no rompa el layout. Todas las pantallas
+      // desplazan su contenido, así que dentro de este margen nada se recorta.
+      builder: (context, child) {
+        final mq = MediaQuery.of(context);
+        return MediaQuery(
+          data: mq.copyWith(
+            textScaler: mq.textScaler.clamp(minScaleFactor: 1.0, maxScaleFactor: 1.6),
+          ),
+          child: child!,
+        );
+      },
     );
   }
 }
@@ -182,7 +194,10 @@ class _AjustesTabState extends State<AjustesTab> {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text('Tus actividades', style: Theme.of(context).textTheme.titleLarge),
+          Semantics(
+            header: true,
+            child: Text('Tus actividades', style: Theme.of(context).textTheme.titleLarge),
+          ),
           const SizedBox(height: 4),
           Text('Las que te interesan aparecen a mano al consultar.',
               style: Theme.of(context).textTheme.bodyMedium),
@@ -222,9 +237,12 @@ class _Proximamente extends StatelessWidget {
           children: [
             Icon(icono, size: 64, color: muted),
             const SizedBox(height: 16),
-            Text(titulo,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleLarge),
+            Semantics(
+              header: true,
+              child: Text(titulo,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleLarge),
+            ),
             const SizedBox(height: 8),
             Text(texto,
                 textAlign: TextAlign.center,
