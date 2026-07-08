@@ -39,3 +39,6 @@ pinta("Supabase · Setas en Castelló hoy (sin reglas publicadas -> verde sin av
 
 pinta("Supabase · Fuego en Madrid (fuera de la CV -> igualmente rojo, sin dato)",
       evaluar(ds, "fuego_recreativo", 40.42, -3.70, hoy))
+
+pinta("Supabase · Pesca en Castelló sin sesion (regla requiere licencia -> amarillo)",
+      evaluar(ds, "pesca", LAT, LON, hoy))
