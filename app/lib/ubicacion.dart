@@ -9,6 +9,18 @@ class Ubicacion {
 /// Obtiene la ubicación del dispositivo, con mensajes legibles si no se puede.
 /// Lanza un String (mensaje para el usuario) en caso de fallo controlado.
 class ServicioUbicacion {
+  /// Pide el permiso de ubicación de forma anticipada (onboarding), sin obtener
+  /// posición: solo dispara el diálogo del sistema tras haberlo justificado en
+  /// pantalla. No lanza; devuelve true si quedó concedido.
+  static Future<bool> solicitarPermiso() async {
+    var permiso = await Geolocator.checkPermission();
+    if (permiso == LocationPermission.denied) {
+      permiso = await Geolocator.requestPermission();
+    }
+    return permiso == LocationPermission.whileInUse ||
+        permiso == LocationPermission.always;
+  }
+
   static Future<Ubicacion> actual() async {
     if (!await Geolocator.isLocationServiceEnabled()) {
       throw 'La ubicación está desactivada en tu dispositivo. Actívala o elige un punto.';

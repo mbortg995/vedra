@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'actividades.dart';
+import 'preferencias.dart';
+import 'pantalla_onboarding.dart';
 import 'theme.dart';
 import 'pantalla_consulta.dart';
 
@@ -12,8 +15,52 @@ class VedraApp extends StatelessWidget {
       title: 'Vedra',
       debugShowCheckedModeBanner: false,
       theme: VedraTheme.light(),
-      home: const InicioVedra(),
+      home: const _Arranque(),
     );
+  }
+}
+
+/// Decide qué mostrar en el primer frame: onboarding si es el primer arranque,
+/// la app si ya se vio. Mientras carga la preferencia, un splash mínimo.
+class _Arranque extends StatefulWidget {
+  const _Arranque();
+  @override
+  State<_Arranque> createState() => _ArranqueState();
+}
+
+class _ArranqueState extends State<_Arranque> {
+  bool? _mostrarOnboarding;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargar();
+  }
+
+  Future<void> _cargar() async {
+    bool completo;
+    try {
+      completo = await Preferencias.onboardingCompleto();
+    } catch (e) {
+      // Si las preferencias fallan, no bloqueamos el arranque: mostramos el
+      // onboarding (comportamiento del primer uso) en vez de colgarnos.
+      debugPrint('Preferencias no disponibles: $e');
+      completo = false;
+    }
+    if (mounted) setState(() => _mostrarOnboarding = !completo);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_mostrarOnboarding == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_mostrarOnboarding!) {
+      return PantallaOnboarding(
+        onListo: () => setState(() => _mostrarOnboarding = false),
+      );
+    }
+    return const InicioVedra();
   }
 }
 
@@ -31,7 +78,7 @@ class _InicioVedraState extends State<InicioVedra> {
   static const _paginas = [
     ConsultaTab(),
     _LicenciasTab(),
-    _AjustesTab(),
+    AjustesTab(),
   ];
 
   @override
@@ -77,14 +124,82 @@ class _LicenciasTab extends StatelessWidget {
   }
 }
 
-class _AjustesTab extends StatelessWidget {
-  const _AjustesTab();
+/// Ajustes: por ahora, las actividades de interés (editables) y la opción de
+/// volver a ver la presentación. Es el sitio donde el usuario cambia lo que
+/// eligió en el onboarding (acceptación del issue #11).
+class AjustesTab extends StatefulWidget {
+  const AjustesTab({super.key});
+  @override
+  State<AjustesTab> createState() => _AjustesTabState();
+}
+
+class _AjustesTabState extends State<AjustesTab> {
+  Set<String> _actividades = {};
+  bool _cargado = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargar();
+  }
+
+  Future<void> _cargar() async {
+    final a = await Preferencias.actividadesInteres();
+    if (mounted) {
+      setState(() {
+        _actividades = a.toSet();
+        _cargado = true;
+      });
+    }
+  }
+
+  Future<void> _guardar(Set<String> nueva) async {
+    setState(() => _actividades = nueva);
+    await Preferencias.guardarActividadesInteres(nueva.toList());
+  }
+
+  Future<void> _repetirPresentacion() async {
+    await Preferencias.reiniciarOnboarding();
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PantallaOnboarding(
+          actividadesIniciales: _actividades.toList(),
+          onListo: () => Navigator.of(context).pop(),
+        ),
+      ),
+    );
+    // Al volver, recarga por si cambió la selección durante la presentación.
+    await _cargar();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return const _Proximamente(
-      icono: Icons.settings_outlined,
-      titulo: 'Ajustes',
-      texto: 'Tus actividades de interés, avisos y preferencias de la app.',
+    if (!_cargado) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text('Tus actividades', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 4),
+          Text('Las que te interesan aparecen a mano al consultar.',
+              style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 16),
+          SelectorActividades(seleccion: _actividades, onCambio: _guardar),
+          const SizedBox(height: 32),
+          const Divider(),
+          const SizedBox(height: 8),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.slideshow_outlined),
+            title: const Text('Ver la presentación de nuevo'),
+            subtitle: const Text('Repasa cómo funciona el semáforo y los permisos.'),
+            onTap: _repetirPresentacion,
+          ),
+        ],
+      ),
     );
   }
 }
