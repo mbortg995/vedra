@@ -34,7 +34,7 @@ for t in ds.territorios_que_contienen(LAT, LON):
 pinta("Supabase · Fuego en Castelló hoy (sin dato de preemergencia -> rojo por seguridad)",
       evaluar(ds, "fuego_recreativo", LAT, LON, hoy))
 
-pinta("Supabase · Setas en Castelló hoy (sin reglas publicadas -> verde sin avisos)",
+pinta("Supabase · Setas en Castelló (Orden 1996: 4 avisos si verde; hoy rojo si preemergencia 3)",
       evaluar(ds, "setas", LAT, LON, hoy))
 
 pinta("Supabase · Fuego en Madrid (fuera de la CV -> igualmente rojo, sin dato)",
