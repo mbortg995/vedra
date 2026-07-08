@@ -9,6 +9,24 @@
       "territorio": "CV",
       "hash": "afe3cd7b6eadde385f16bf50b4d43ae27a55decb8393918a34bf51a764d67552",
       "revisado_en": "2026-07-07T06:34:15.139245+00:00"
+    },
+    {
+      "id": "quema_decreto_91_2023",
+      "descripcion": "Fuego/quema CV — Decreto 91/2023 (Reglamento de la Ley 3/1993 forestal; quemas y usos del fuego)",
+      "url": "https://noticias.juridicas.com/base_datos/CCAA/767197-decreto-91-2023-de-22-de-junio-del-consell-por-el-que-se-aprueba-el-reglamento.html",
+      "actividad": "quema",
+      "territorio": "CV",
+      "hash": "76450024f982f39b3097003edff0ecb2b7be81f081f93fe0b00cc0d11e1a29c3",
+      "revisado_en": "2026-07-08T00:00:00+00:00"
+    },
+    {
+      "id": "pesca_resolucion_2024",
+      "descripcion": "Pesca continental CV — Resolución de 16/09/2024 (DOGV 21/10/2024) que modifica la ORDEN 30/2016 (tramos, acotados, especies). OJO: es PDF; el vigilante hashea el fichero tal cual (detecta cambios en ESE documento, no una resolución nueva en otra URL).",
+      "url": "https://mediambient.gva.es/documents/20551003/173798778/2024_10_21_Resoluci%C3%B3n+modificaci%C3%B3n+Orden+periodos+habiles+pesca.pdf/fe09f69d-da31-3f4b-483c-b9a6ca35ba3f?t=1729494961231",
+      "actividad": "pesca",
+      "territorio": "CV",
+      "hash": "795541a5ab873eb7900a7cfe83316503a591bccc84cc5924f649a28172ee3cc8",
+      "revisado_en": "2026-07-08T00:00:00+00:00"
     }
   ]
 }
