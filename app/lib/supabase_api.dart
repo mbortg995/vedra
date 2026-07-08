@@ -29,7 +29,8 @@ class SupabaseApi {
     final ids = territorioIds.join(',');
     return _get('reglas?actividad_id=eq.$aid&territorio_id=in.($ids)'
         '&select=territorio_id,capa,efecto,parametros,detalle,'
-        'fuentes(organismo,url,fecha_publicacion)');
+        'fuentes(organismo,url,fecha_publicacion),'
+        'regla_requisitos(tipo_requisito_id)');
   }
 
   /// Condición diaria (preemergencia) del territorio de mayor nivel que la tenga.

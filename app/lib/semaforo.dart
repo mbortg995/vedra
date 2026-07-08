@@ -41,7 +41,8 @@ class Resultado {
 }
 
 Future<Resultado> evaluar(
-    SupabaseApi api, String actividad, double lat, double lon) async {
+    SupabaseApi api, String actividad, double lat, double lon,
+    {Set<String> requisitosCumplidos = const {}}) async {
   final now = DateTime.now();
   final fechaIso =
       '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
@@ -88,7 +89,17 @@ Future<Resultado> evaluar(
     if (efecto == 'prohibe') {
       r.bloqueos.add(Item(detalle, fuente));
     } else if (efecto == 'requiere') {
-      r.requisitos.add(Item(detalle, fuente));
+      // El requisito solo cuenta como pendiente (amarillo) si el usuario NO lo
+      // cumple. Si tiene la licencia vigente (su tipo_requisito está en
+      // `requisitosCumplidos`), no bloquea el verde. Sin ella -> pendiente, que
+      // es el lado seguro.
+      final reqs = (regla['regla_requisitos'] as List?) ?? const [];
+      final ids = [for (final rr in reqs) rr['tipo_requisito_id'] as String?];
+      final cumplido =
+          ids.any((id) => id != null && requisitosCumplidos.contains(id));
+      if (!cumplido) {
+        r.requisitos.add(Item(detalle, fuente));
+      }
     } else if (efecto == 'limita') {
       if (p.containsKey('solo_si_preemergencia') && condicion != null) {
         if (condicion['nivel'] != p['solo_si_preemergencia']) {
