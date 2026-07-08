@@ -34,7 +34,7 @@ on conflict (id) do update
 -- Las cuatro reglas (limita/permanente/CV/publicada), cada una con su artículo.
 insert into reglas (id, territorio_id, actividad_id, fuente_id, capa, efecto,
                     parametros, vigencia, detalle, cita, estado_revision)
-select v.id, t.id, a.id, 'f0000000-0000-4000-8000-000000000020',
+select v.id::uuid, t.id, a.id, 'f0000000-0000-4000-8000-000000000020',
        'permanente', 'limita', v.parametros::jsonb, null, v.detalle, v.cita, 'publicada'
 from territorios t, actividades a,
   (values
