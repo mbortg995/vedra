@@ -24,6 +24,27 @@ programada sobre el plan de Claude), no una API de pago.
 `revisada`. Nunca se inventa ni se deduce normativa: si el documento no lo dice
 con claridad, no se crea la regla.
 
+## Publicar por migración SQL (alternativa)
+
+Además del flujo JSON de `curacion.py`, una regla curada puede publicarse como
+**migración versionada** en `supabase/migrations/` y aplicarse con
+`supabase db push --linked`. Es lo que se ha usado para las últimas reglas
+(licencia de pesca, setas, periodo hábil): un `.sql` con `fuentes` + `reglas`
+(con `cita` literal + `estado_revision = 'publicada'`) + `regla_requisitos`.
+
+**Norma (no negociable): validar el SQL ANTES de hacer `db push` a producción.**
+No se lanza SQL sin probar contra la base real. Que las migraciones vayan en
+transacción (un fallo hace rollback limpio) NO es excusa para saltarse esto —
+es red de seguridad, no proceso. Ojo especialmente **tras recibir el OK de
+publicación**: ese OK es para publicar normativa correcta, no para ejecutar SQL
+sin probar; baja la guardia. Cómo validar antes del push:
+- Releer el SQL con calma (tipos, casts, columnas, idempotencia).
+- Probar en una transacción con rollback (`begin; <migración>; rollback;`) o un
+  dry-run, comprobando que inserta lo esperado.
+
+Gotcha confirmado: en `INSERT ... SELECT` desde un `VALUES`, castear `v.id::uuid`
+(los literales sí autoconvierten a uuid, las columnas de un `VALUES` no).
+
 ## Esquema del JSON
 
 Lista de objetos regla:
