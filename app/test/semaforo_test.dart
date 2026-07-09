@@ -16,7 +16,7 @@ class _FakeApi extends SupabaseApi {
 
   @override
   Future<Map<String, dynamic>?> condicionDiaria(
-          List<String> ids, String fecha) async =>
+          List<Map<String, dynamic>> cadena, String fecha) async =>
       null;
 
   @override
@@ -58,5 +58,20 @@ void main() {
     final r = await evaluar(api, 'pesca', 39.98, -0.05,
         requisitosCumplidos: {'lic-caza'});
     expect(r.semaforo, 'amarillo');
+  });
+
+  group('Preemergencia conservadora (interino #18)', () {
+    test('masRestrictiva elige el nivel más alto entre las zonas', () {
+      final r = SupabaseApi.masRestrictiva([
+        {'nivel': '1', 'obtenido_en': 'a'},
+        {'nivel': '3', 'obtenido_en': 'b'},
+        {'nivel': '2', 'obtenido_en': 'c'},
+      ]);
+      expect(r?['nivel'], '3');
+    });
+
+    test('masRestrictiva de lista vacía es null (sin dato -> rojo por regla 1)', () {
+      expect(SupabaseApi.masRestrictiva([]), isNull);
+    });
   });
 }

@@ -52,7 +52,7 @@ Future<Resultado> evaluar(
   r.territorios = [for (final t in cadena) (t['nombre'] as String?) ?? ''];
   final ids = [for (final t in cadena) t['id'] as String];
 
-  final condicion = await api.condicionDiaria(ids, fechaIso);
+  final condicion = await api.condicionDiaria(cadena, fechaIso);
   if (condicion != null) {
     r.condicionNivel = condicion['nivel'] as String?;
     final obtenido = DateTime.parse(condicion['obtenido_en'] as String).toUtc();

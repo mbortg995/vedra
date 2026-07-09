@@ -33,20 +33,38 @@ class SupabaseApi {
         'regla_requisitos(tipo_requisito_id)');
   }
 
-  /// Condición diaria (preemergencia) del territorio de mayor nivel que la tenga.
+  /// Nivel de preemergencia del día, de forma CONSERVADORA (interino, #18):
+  /// devuelve la condición MÁS RESTRICTIVA (nivel más alto) entre TODAS las zonas
+  /// del CCAA del punto, no la de su zona concreta.
+  ///
+  /// Mientras la geometría de las 7 zonas Previfoc sea provisional (bandas), un
+  /// punto puede caer en la zona equivocada; tomar el máximo del CCAA garantiza
+  /// que nunca recibe MENOS restricción de la real (regla de oro). Basta con que
+  /// el punto caiga en el CCAA (geometría IGN oficial), así que las bandas dejan
+  /// de influir en el nivel. Con la geometría oficial se volverá al nivel por
+  /// zona exacta.
   Future<Map<String, dynamic>?> condicionDiaria(
-      List<String> territorioIds, String fechaIso) async {
-    if (territorioIds.isEmpty) return null;
-    final ids = territorioIds.join(',');
-    final rows = await _get('condiciones_diarias?territorio_id=in.($ids)'
-        '&fecha=eq.$fechaIso&tipo=eq.preemergencia_incendios'
-        '&select=territorio_id,nivel,obtenido_en,fuente_url');
-    for (final tid in territorioIds) {
-      final m = rows.where((r) => r['territorio_id'] == tid);
-      if (m.isNotEmpty) return m.first;
-    }
-    return null;
+      List<Map<String, dynamic>> cadena, String fechaIso) async {
+    final ccaa = cadena.where((t) => t['nivel'] == 'ccaa');
+    if (ccaa.isEmpty) return null; // punto fuera de un CCAA cubierto
+    final ccaaId = ccaa.first['id'];
+    final rows = await _get(
+        'condiciones_diarias?fecha=eq.$fechaIso&tipo=eq.preemergencia_incendios'
+        '&select=nivel,obtenido_en,fuente_url,territorios!inner(padre_id)'
+        '&territorios.padre_id=eq.$ccaaId');
+    return masRestrictiva(rows);
   }
+
+  /// De varias condiciones diarias, la más restrictiva (mayor nivel). La frescura
+  /// se juzga después sobre la devuelta. Público (static) para poder testearlo.
+  static Map<String, dynamic>? masRestrictiva(List<Map<String, dynamic>> filas) {
+    if (filas.isEmpty) return null;
+    final orden = [...filas]
+      ..sort((a, b) => _nivelInt(b['nivel']).compareTo(_nivelInt(a['nivel'])));
+    return orden.first;
+  }
+
+  static int _nivelInt(dynamic n) => int.tryParse('$n') ?? 0;
 
   Future<List<Map<String, dynamic>>> _get(String path) async =>
       _lista(await http.get(_u(path), headers: _headers));
