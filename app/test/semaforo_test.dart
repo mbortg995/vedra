@@ -110,4 +110,34 @@ void main() {
       expect(r.avisos.map((a) => a.texto), contains('Aviso de temporada'));
     });
   });
+
+  group('Ventana de peligro de incendios (#31)', () {
+    final invierno = DateTime(2026, 1, 15);
+    final verano = DateTime(2026, 8, 1);
+
+    test('enVentanaPeligro: bordes 1-jun y 15-oct inclusive', () {
+      expect(enVentanaPeligro(DateTime(2026, 6, 1)), isTrue);
+      expect(enVentanaPeligro(DateTime(2026, 10, 15)), isTrue);
+      expect(enVentanaPeligro(DateTime(2026, 10, 16)), isFalse);
+      expect(enVentanaPeligro(invierno), isFalse);
+    });
+
+    test('Quema en invierno sin boletín NO es rojo (fuera de la ventana)', () async {
+      final api = _FakeApi([]);
+      final r = await evaluar(api, 'quema', 39.98, -0.05, ahora: invierno);
+      expect(r.semaforo, isNot('rojo'));
+    });
+
+    test('Quema en verano sin boletín sigue siendo rojo', () async {
+      final api = _FakeApi([]);
+      final r = await evaluar(api, 'quema', 39.98, -0.05, ahora: verano);
+      expect(r.semaforo, 'rojo');
+    });
+
+    test('Fuego recreativo depende del boletín todo el año', () async {
+      final api = _FakeApi([]);
+      final r = await evaluar(api, 'fuego_recreativo', 39.98, -0.05, ahora: invierno);
+      expect(r.semaforo, 'rojo');
+    });
+  });
 }
