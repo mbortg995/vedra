@@ -8,8 +8,22 @@ import 'supabase_api.dart';
 /// El resultado usa modelos TIPADOS (no mapas dinámicos): la interpretación del
 /// JSON se hace aquí, y la UI solo lee campos.
 const _dependeDeDia = {'fuego_recreativo', 'quema'};
+/// De las anteriores, estas solo exigen el dato diario DENTRO de la ventana de
+/// peligro de incendios (#31): fuera, un rojo por "falta el boletín" no tendría
+/// sentido (p. ej. quemar rastrojos en invierno). El fuego recreativo, por ser
+/// la afirmación de más riesgo, sigue exigiéndolo todo el año.
+const _dependeDeDiaSoloEnVentana = {'quema'};
 const _afectadasPreemergencia3 = {'fuego_recreativo', 'acampada', 'setas', 'quema'};
 const _frescuraMax = Duration(hours: 30);
+
+/// Ventana de peligro de incendios forestales: 1 de junio a 15 de octubre
+/// (ambos inclusive). Público para test.
+bool enVentanaPeligro(DateTime fecha) {
+  final d = DateTime(fecha.year, fecha.month, fecha.day);
+  final inicio = DateTime(fecha.year, 6, 1);
+  final fin = DateTime(fecha.year, 10, 15);
+  return !d.isBefore(inicio) && !d.isAfter(fin);
+}
 
 class Fuente {
   final String? organismo;
@@ -42,8 +56,8 @@ class Resultado {
 
 Future<Resultado> evaluar(
     SupabaseApi api, String actividad, double lat, double lon,
-    {Set<String> requisitosCumplidos = const {}}) async {
-  final now = DateTime.now();
+    {Set<String> requisitosCumplidos = const {}, DateTime? ahora}) async {
+  final now = ahora ?? DateTime.now();
   final fechaIso =
       '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   final r = Resultado();
@@ -56,12 +70,18 @@ Future<Resultado> evaluar(
   if (condicion != null) {
     r.condicionNivel = condicion['nivel'] as String?;
     final obtenido = DateTime.parse(condicion['obtenido_en'] as String).toUtc();
-    r.condicionFresca = DateTime.now().toUtc().difference(obtenido) <= _frescuraMax;
+    r.condicionFresca = now.toUtc().difference(obtenido) <= _frescuraMax;
   }
 
   // REGLA 1: dato diario ausente/caduco en actividad que lo requiere -> rojo.
-  if (_dependeDeDia.contains(actividad) &&
-      (condicion == null || !r.condicionFresca)) {
+  // La quema solo lo exige dentro de la ventana de peligro (#31).
+  var requiereDia = _dependeDeDia.contains(actividad);
+  if (requiereDia &&
+      _dependeDeDiaSoloEnVentana.contains(actividad) &&
+      !enVentanaPeligro(now)) {
+    requiereDia = false;
+  }
+  if (requiereDia && (condicion == null || !r.condicionFresca)) {
     r.semaforo = 'rojo';
     r.titulo = 'No podemos confirmarlo — trátalo como prohibido';
     r.avisos.add(const Item(

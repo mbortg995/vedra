@@ -47,7 +47,7 @@ class DatosMemoria:
             "setas": [
                 {"territorio": "cv", "capa": "permanente", "efecto": "limita",
                  "parametros": {"kg_max_dia": 10},
-                 "detalle": "Máximo orientativo por persona y día.",
+                 "detalle": "Máximo orientativo de 10 kg por persona y día.",
                  "fuente": {"organismo": "GVA - Medi Natural", "fecha": "2026-01-01", "url": "https://..."}},
             ],
         }

@@ -20,10 +20,23 @@ from dataclasses import dataclass, field
 
 # Actividades cuya seguridad depende del dato diario. Si falta o es viejo -> rojo.
 DEPENDE_DE_DIA = {"fuego_recreativo", "quema"}
+# De las anteriores, estas solo exigen el dato diario DENTRO de la ventana de
+# peligro (#31): fuera, un rojo por "falta el boletín" no tendría sentido (p. ej.
+# quemar rastrojos en invierno). El fuego recreativo, por ser la afirmación de
+# más riesgo, sigue exigiéndolo todo el año.
+DEPENDE_DE_DIA_SOLO_EN_VENTANA = {"quema"}
+# Ventana de peligro de incendios forestales: 1 jun - 15 oct (ambos inclusive).
+VENTANA_PELIGRO = ((6, 1), (10, 15))
 # Con preemergencia 3, estas actividades también se ven afectadas.
 AFECTADAS_POR_PREEMERGENCIA_3 = {"fuego_recreativo", "acampada", "setas", "quema"}
 # El boletín es diario; 30 h da margen a un retraso antes de considerarlo caduco.
 FRESCURA_MAX = timedelta(hours=30)
+
+
+def _en_ventana_peligro(fecha):
+    """¿La fecha cae en la ventana de peligro de incendios (1 jun - 15 oct)?"""
+    (m1, d1), (m2, d2) = VENTANA_PELIGRO
+    return date(fecha.year, m1, d1) <= fecha <= date(fecha.year, m2, d2)
 
 
 def _en_vigencia(vigencia, fecha):
@@ -88,10 +101,14 @@ def evaluar(datos, actividad, lat, lon, fecha=None, usuario_id=None, ahora=None)
         })
 
     # --- REGLA 1: dato diario ausente/caduco en actividad que lo requiere -> rojo ---
-    if actividad in DEPENDE_DE_DIA and (condicion is None or not fresco):
+    # La quema solo lo exige dentro de la ventana de peligro (#31).
+    requiere_dia = actividad in DEPENDE_DE_DIA
+    if requiere_dia and actividad in DEPENDE_DE_DIA_SOLO_EN_VENTANA and not _en_ventana_peligro(fecha):
+        requiere_dia = False
+    if requiere_dia and (condicion is None or not fresco):
         r.semaforo = "rojo"
         r.titulo = "No podemos confirmarlo — trátalo como prohibido"
-        r.avisos.append("No hay dato oficial de preemergencia fresco para hoy. Por seguridad, no enciendas fuego.")
+        r.avisos.append("No hay dato oficial de preemergencia fresco para hoy. Por seguridad, no lo hagas.")
         return r
 
     # --- REGLA 2: bloqueo por preemergencia 3 sobre actividades afectadas -> rojo ---
@@ -126,17 +143,21 @@ def evaluar(datos, actividad, lat, lon, fecha=None, usuario_id=None, ahora=None)
             })
 
         elif regla["efecto"] == "limita":
+            # Mismo trato que el cliente (#31): el `detalle` de la regla es el
+            # aviso (tallas, cupos, periodos...). `parametros` queda para uso
+            # estructurado futuro, no para redactar el texto.
             p = regla["parametros"]
-            if "kg_max_dia" in p:
-                r.avisos.append(f"Máximo {p['kg_max_dia']} kg por persona y día.")
             if "solo_si_preemergencia" in p and condicion:
                 if condicion["nivel"] != p["solo_si_preemergencia"]:
                     r.bloqueos.append({
-                        "detalle": f"Fuego permitido solo con preemergencia {p['solo_si_preemergencia']} (hoy: {condicion['nivel']}).",
+                        "detalle": f"Solo permitido con preemergencia {p['solo_si_preemergencia']} "
+                                   f"(hoy: nivel {condicion['nivel']}).",
                         "fuente": regla["fuente"],
                     })
-                else:
-                    r.avisos.append(f"{regla['detalle']}")
+                elif regla.get("detalle"):
+                    r.avisos.append(regla["detalle"])
+            elif regla.get("detalle"):
+                r.avisos.append(regla["detalle"])
 
     # --- Semáforo final ---
     if r.bloqueos:
@@ -198,6 +219,10 @@ if __name__ == "__main__":
     pinta("5. Setas, día normal -> verde con aviso de kg máximos",
           evaluar(dm, "setas", 39.98, -0.05, hoy, "user-con-todo", manana_frio))
 
+    invierno = date(2026, 1, 15)
+    pinta("6. Quema en invierno, sin boletín -> ya NO es rojo (fuera de la ventana de peligro)",
+          evaluar(dm, "quema", 39.98, -0.05, invierno, "user-con-todo", manana_frio))
+
     # --- Comprobaciones de vigencia (#30) ---
     assert _en_vigencia(None, hoy) is True
     assert _en_vigencia("[2026-06-01,2026-10-16)", date(2026, 7, 9)) is True
@@ -205,3 +230,18 @@ if __name__ == "__main__":
     assert _en_vigencia("[2026-07-09,2026-08-01)", date(2026, 7, 9)) is True   # bajo inclusivo
     assert _en_vigencia("[2026-01-01,2026-07-09)", date(2026, 7, 9)) is False  # alto exclusivo
     print("\n[✓] #30 vigencia: comprobaciones OK.")
+
+    # --- Comprobaciones de la ventana de peligro (#31) ---
+    assert _en_ventana_peligro(date(2026, 6, 1)) is True     # borde inicial inclusivo
+    assert _en_ventana_peligro(date(2026, 10, 15)) is True   # borde final inclusivo
+    assert _en_ventana_peligro(date(2026, 10, 16)) is False
+    assert _en_ventana_peligro(invierno) is False
+
+    verano_sin_dato = date(2026, 8, 1)
+    # Quema en invierno, sin boletín: ya no es rojo (antes lo era todo el año).
+    assert evaluar(dm, "quema", 39.98, -0.05, invierno, "user-con-todo", manana_frio).semaforo != "rojo"
+    # Dentro de la ventana y sin boletín, sigue siendo rojo.
+    assert evaluar(dm, "quema", 39.98, -0.05, verano_sin_dato, "user-con-todo", manana_frio).semaforo == "rojo"
+    # El fuego recreativo depende del boletín todo el año (afirmación de más riesgo).
+    assert evaluar(dm, "fuego_recreativo", 39.98, -0.05, invierno, "user-con-todo", manana_frio).semaforo == "rojo"
+    print("[✓] #31 ventana de peligro: comprobaciones OK.")
