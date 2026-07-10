@@ -82,6 +82,8 @@ Future<Resultado> evaluar(
 
   // Reglas publicadas aplicables.
   for (final regla in await api.reglas(actividad, ids)) {
+    // Estacionales: fuera de su vigencia (veda, periodo hábil) no aplican (#30).
+    if (!enVigencia(regla['vigencia'] as String?, now)) continue;
     final efecto = regla['efecto'];
     final p = (regla['parametros'] as Map?) ?? {};
     final detalle = (regla['detalle'] as String?) ?? '';
@@ -127,4 +129,20 @@ Future<Resultado> evaluar(
     r.titulo = 'Adelante — cumples todo';
   }
   return r;
+}
+
+/// ¿La fecha cae dentro de la vigencia de la regla? Sin vigencia (permanente) o
+/// no parseable → sí (aplicar; lado seguro). Formato daterange de Postgres,
+/// normalizado a `[bajo,alto)` (bajo inclusivo, alto exclusivo); extremos vacíos
+/// = sin límite. Público para test.
+bool enVigencia(String? vigencia, DateTime fecha) {
+  if (vigencia == null || vigencia.isEmpty) return true;
+  final m = RegExp(r'^[\[(]([^,]*),([^,]*)[\])]$').firstMatch(vigencia.trim());
+  if (m == null) return true;
+  final d = DateTime(fecha.year, fecha.month, fecha.day);
+  final bajo = m.group(1)!;
+  final alto = m.group(2)!;
+  if (bajo.isNotEmpty && d.isBefore(DateTime.parse(bajo))) return false;
+  if (alto.isNotEmpty && !d.isBefore(DateTime.parse(alto))) return false;
+  return true;
 }
