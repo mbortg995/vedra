@@ -9,6 +9,7 @@ tanto para los diccionarios en memoria (tests) como para Supabase por REST.
     python3 validar_supabase.py      # evaluación en vivo contra Supabase
 """
 
+import re
 from datetime import datetime, date, timezone, timedelta
 from dataclasses import dataclass, field
 
@@ -23,6 +24,23 @@ DEPENDE_DE_DIA = {"fuego_recreativo", "quema"}
 AFECTADAS_POR_PREEMERGENCIA_3 = {"fuego_recreativo", "acampada", "setas", "quema"}
 # El boletín es diario; 30 h da margen a un retraso antes de considerarlo caduco.
 FRESCURA_MAX = timedelta(hours=30)
+
+
+def _en_vigencia(vigencia, fecha):
+    """True si `fecha` cae dentro del daterange (o si no hay vigencia). Postgres
+    serializa el daterange normalizado a '[bajo,alto)' (bajo incl., alto excl.);
+    extremos vacíos = sin límite. No parseable -> True (aplicar; lado seguro)."""
+    if not vigencia:
+        return True
+    m = re.match(r"^[\[(]([^,]*),([^,]*)[\])]$", vigencia.strip())
+    if not m:
+        return True
+    bajo, alto = m.group(1), m.group(2)
+    if bajo and fecha < date.fromisoformat(bajo):
+        return False
+    if alto and fecha >= date.fromisoformat(alto):
+        return False
+    return True
 
 
 # ----------------------------------------------------------------------------
@@ -91,6 +109,9 @@ def evaluar(datos, actividad, lat, lon, fecha=None, usuario_id=None, ahora=None)
     tiene = datos.licencias(usuario_id)
     for regla in datos.reglas_actividad(actividad):
         if regla["territorio"] not in ids:
+            continue
+        # Estacionales: fuera de su vigencia (veda, periodo hábil) no aplican (#30).
+        if not _en_vigencia(regla.get("vigencia"), fecha):
             continue
 
         if regla["efecto"] == "prohibe":
@@ -176,3 +197,11 @@ if __name__ == "__main__":
 
     pinta("5. Setas, día normal -> verde con aviso de kg máximos",
           evaluar(dm, "setas", 39.98, -0.05, hoy, "user-con-todo", manana_frio))
+
+    # --- Comprobaciones de vigencia (#30) ---
+    assert _en_vigencia(None, hoy) is True
+    assert _en_vigencia("[2026-06-01,2026-10-16)", date(2026, 7, 9)) is True
+    assert _en_vigencia("[2020-06-01,2020-10-16)", date(2026, 7, 9)) is False
+    assert _en_vigencia("[2026-07-09,2026-08-01)", date(2026, 7, 9)) is True   # bajo inclusivo
+    assert _en_vigencia("[2026-01-01,2026-07-09)", date(2026, 7, 9)) is False  # alto exclusivo
+    print("\n[✓] #30 vigencia: comprobaciones OK.")

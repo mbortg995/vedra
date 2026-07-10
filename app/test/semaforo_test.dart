@@ -37,6 +37,17 @@ Map<String, dynamic> _reglaRequiereLicencia(String tipoId) => {
       ],
     };
 
+Map<String, dynamic> _reglaLimita(String detalle, String? vigencia) => {
+      'territorio_id': 'cv',
+      'capa': 'estacional',
+      'efecto': 'limita',
+      'parametros': <String, dynamic>{},
+      'detalle': detalle,
+      'vigencia': vigencia,
+      'fuentes': {'organismo': 'GVA', 'url': null, 'fecha_publicacion': null},
+      'regla_requisitos': const [],
+    };
+
 void main() {
   test('Regla requiere sin la licencia -> amarillo', () async {
     final api = _FakeApi([_reglaRequiereLicencia('lic-pesca')]);
@@ -72,6 +83,31 @@ void main() {
 
     test('masRestrictiva de lista vacía es null (sin dato -> rojo por regla 1)', () {
       expect(SupabaseApi.masRestrictiva([]), isNull);
+    });
+  });
+
+  group('Vigencia de reglas estacionales (#30)', () {
+    final hoy = DateTime(2026, 7, 9);
+
+    test('enVigencia: null siempre; dentro sí; fuera no', () {
+      expect(enVigencia(null, hoy), isTrue);
+      expect(enVigencia('[2026-06-01,2026-10-16)', hoy), isTrue);
+      expect(enVigencia('[2020-06-01,2020-10-16)', hoy), isFalse);
+      // alto exclusivo: el 16-10 ya queda fuera
+      expect(enVigencia('[2026-01-01,2026-07-09)', hoy), isFalse);
+      expect(enVigencia('[2026-07-09,2026-08-01)', hoy), isTrue);
+    });
+
+    test('Regla fuera de vigencia se descarta (no genera aviso)', () async {
+      final api = _FakeApi([_reglaLimita('Aviso de temporada', '[2020-01-01,2020-02-01)')]);
+      final r = await evaluar(api, 'setas', 39.98, -0.05);
+      expect(r.avisos, isEmpty);
+    });
+
+    test('Regla dentro de vigencia se aplica', () async {
+      final api = _FakeApi([_reglaLimita('Aviso de temporada', '[2000-01-01,2100-01-01)')]);
+      final r = await evaluar(api, 'setas', 39.98, -0.05);
+      expect(r.avisos.map((a) => a.texto), contains('Aviso de temporada'));
     });
   });
 }

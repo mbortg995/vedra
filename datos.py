@@ -136,6 +136,7 @@ class DatosSupabase:
                 "capa": f["capa"], "efecto": f["efecto"],
                 "detalle": f.get("detalle"),
                 "parametros": f.get("parametros") or {},
+                "vigencia": f.get("vigencia"),
                 "fuente": self._fuente(f.get("fuentes")),
             }
             if f["efecto"] == "requiere":
@@ -144,7 +145,6 @@ class DatosSupabase:
                 regla["requisito"] = reqs[0] if reqs else None
             reglas.append(regla)
         return reglas
-        # TODO(vigencia): filtrar reglas estacionales por fecha cuando haya reglas publicadas.
 
     def condicion_diaria(self, territorio_id, fecha):
         f = fecha.isoformat() if hasattr(fecha, "isoformat") else fecha
