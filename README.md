@@ -120,6 +120,33 @@ Backend **completo y con datos reales**; app con varias pantallas funcionando:
 El backlog hacia el MVP vive en **GitHub Issues** (milestones `MVP` / `Post-MVP`,
 labels por área). Vista de un vistazo en el issue-checklist "🎯 MVP".
 
+## Cómo está construido
+
+Vedra lo desarrollo en solitario usando **Claude Code** como par de programación:
+yo defino el problema, el modelo de datos y las reglas de seguridad; la IA escribe
+y refactoriza contra ese contrato. Es una decisión deliberada, y el andamiaje que
+la hace fiable está a la vista en el repo:
+
+- **`CLAUDE.md`** fija las reglas no negociables del dominio *antes* de escribir
+  código. La primera es *ante la duda, rojo*; cualquier tarea que empuje a
+  violarla se detiene y pregunta.
+- **`motor_evaluacion.md`** es el contrato del motor —entrada, salida y orden
+  estricto de resolución del semáforo— y se escribió antes que `motor.py`. El
+  motor se valida contra él con casos de prueba, no contra la intuición.
+- La **lógica está aislada del acceso a datos**: `motor.py` recibe un proveedor,
+  así que pasar de diccionarios en memoria a Supabase no toca la decisión
+  verde/amarillo/rojo. Los tests siguen corriendo sin red.
+- Todo entra por **rama y pull request** contra un issue, con CI (análisis y
+  tests de la app Flutter) en cada PR.
+- El pipeline de ingesta es **defensivo por defecto**: valida antes de escribir y
+  aborta sin escribir ante cualquier anomalía de parseo, porque la ausencia de
+  dato ya produce rojo.
+
+Lo que define el producto —el alcance recortado a propósito, la política de
+frescura del dato diario, la regla de la norma más restrictiva, que nada llegue
+al usuario sin revisión humana— son decisiones de diseño y de responsabilidad,
+no de generación de código.
+
 ## Estructura del repositorio
 
 - `motor_evaluacion.md` — contrato del motor: entrada, salida y orden del semáforo.
